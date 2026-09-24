@@ -53,12 +53,24 @@ def test_backend_job_uses_python_311_and_runs_all_required_checks() -> None:
     assert setup["with"]["cache"] == "pip"
     assert setup["with"]["cache-dependency-path"] == "requirements.txt"
     assert "python -m compileall qa_ai/" in commands
-    assert "python -m pytest --collect-only" in commands
+    assert "python -u -m pytest --collect-only tests/ -vv -s" in commands
     assert "python -m pytest tests/smoke/test_full_journey.py -v" in commands
     assert (
         "python -m pytest tests/ -v "
         "--ignore=tests/smoke/test_external_real_execution.py"
     ) in commands
+
+
+def test_collection_is_scoped_bounded_and_emits_stacks_on_timeout() -> None:
+    backend = _load_workflow()["jobs"]["backend"]
+    collection = next(step for step in backend["steps"] if step.get("name") == "Collect tests")
+
+    assert collection["timeout-minutes"] == "3"
+    assert collection["env"]["PYTHONFAULTHANDLER"] == "1"
+    assert "timeout --signal=ABRT --kill-after=10s 120s" in collection["run"]
+    assert "--collect-only tests/ -vv -s" in collection["run"]
+    assert "continue-on-error" not in collection
+    assert "||" not in collection["run"]
 
 
 def test_frontend_job_uses_frozen_dependencies_and_fails_on_lint_errors() -> None:
@@ -94,4 +106,3 @@ def test_workflow_uses_only_expected_pinned_actions_and_has_no_deployment() -> N
     }
     assert "deploy" not in commands.lower()
     assert "publish" not in commands.lower()
-

@@ -31,7 +31,12 @@ jobs:
         run: python -m compileall qa_ai/
 
       - name: Collect tests
-        run: python -m pytest --collect-only
+        timeout-minutes: 3
+        env:
+          PYTHONFAULTHANDLER: '1'
+        run: |
+          ulimit -c 0
+          timeout --signal=ABRT --kill-after=10s 120s python -u -m pytest --collect-only tests/ -vv -s
 
       - name: Run smoke test
         run: python -m pytest tests/smoke/test_full_journey.py -v
@@ -64,4 +69,3 @@ jobs:
 
       - name: Build
         run: npm run build --workspace=inspectra-ui
-
