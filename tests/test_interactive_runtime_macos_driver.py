@@ -15,6 +15,26 @@ from qa_ai.interactive_runtime.schemas import AutomationBackend, DriverStatus
 MACOS_ONLY = pytest.mark.skipif(sys.platform != "darwin", reason="macOS only")
 
 
+@pytest.fixture(autouse=True)
+def simulated_macos(monkeypatch):
+    # These are mocked driver tests, not tests of the host's OS or permissions.
+    monkeypatch.setattr(
+        "qa_ai.interactive_runtime.drivers.macos_accessibility_driver._platform.system",
+        lambda: "Darwin",
+    )
+
+
+def test_non_macos_driver_is_unavailable_without_permission_probe(monkeypatch):
+    monkeypatch.setattr(
+        "qa_ai.interactive_runtime.drivers.macos_accessibility_driver._platform.system",
+        lambda: "Linux",
+    )
+    with patch.object(MacOSAccessibilityDriver, "_check_accessibility_permission") as probe:
+        driver = MacOSAccessibilityDriver()
+    probe.assert_not_called()
+    assert driver.capabilities().status == DriverStatus.NOT_AVAILABLE
+
+
 @pytest.fixture
 def driver():
     """Driver with permission check mocked to False (no real osascript)."""

@@ -2827,6 +2827,8 @@ class TestLocalPicker:
     def test_real_dialog_validates_real_path(self, client, tmp_path, monkeypatch):
         """_open_native_dialog validates path before returning — real dir passes."""
         import qa_ai.product_backend.routers.local_picker as picker_mod
+        # This test supplies a fake GUI; host display availability is unrelated.
+        monkeypatch.setattr(picker_mod, "_is_gui_available", lambda: True)
         # Patch askdirectory at the filedialog level to return our tmp_path
         import types
         fake_filedialog = types.SimpleNamespace(askdirectory=lambda **_kw: str(tmp_path))

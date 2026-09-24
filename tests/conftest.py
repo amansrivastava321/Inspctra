@@ -6,8 +6,26 @@ import pytest
 from pathlib import Path
 import tempfile
 import shutil
+import json
 
 from qa_ai.runtime.artifact_store import ArtifactStore, reset_artifact_store
+
+
+@pytest.fixture
+def graphify_workspace(tmp_path, monkeypatch):
+    """Small deterministic graph; never rely on ignored developer graph output."""
+    graph_dir = tmp_path / "graphify-out"
+    graph_dir.mkdir()
+    graph = {
+        "nodes": [
+            {"id": "planner", "source_file": "qa_ai/improvement/fix_planner.py"},
+            {"id": "consumer", "source_file": "qa_ai/improvement/fix_consumer.py"},
+        ],
+        "links": [{"source": "planner", "target": "consumer"}],
+    }
+    (graph_dir / "graph.json").write_text(json.dumps(graph), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    return tmp_path
 
 
 @pytest.fixture

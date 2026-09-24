@@ -2,7 +2,7 @@ from qa_ai.platform_performance.incremental_graph_manager import IncrementalGrap
 from qa_ai.ai_orchestration.software_understanding_engine import SoftwareUnderstandingEngine
 
 
-def test_software_understanding_engine_infers_type_and_workflows(artifact_store):
+def test_software_understanding_engine_infers_type_and_workflows(artifact_store, graphify_workspace):
     artifact_store.save_artifact(
         "app_map",
         {
@@ -20,5 +20,4 @@ def test_software_understanding_engine_infers_type_and_workflows(artifact_store)
     assert "auth_flow" in result["critical_workflows"]
     assert "authenticated_api" in result["sensitive_areas"]
     assert result["summary"]["confidence"] > 0
-    assert IncrementalGraphManager().plan()["graph_stats"]["nodes"] > 0
-
+    assert IncrementalGraphManager().plan()["graph_stats"]["nodes"] == 2

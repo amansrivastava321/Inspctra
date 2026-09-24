@@ -113,13 +113,20 @@ class TestCapabilityDetector:
             pytest.skip("test for non-macOS only")
         assert CapabilityDetector.screencapture_available() is False
 
-    def test_summary_has_required_keys(self):
+    @pytest.mark.parametrize("platform_name,expected_keys", [
+        ("macos", {"macos_accessibility_permission", "screencapture", "pyobjc"}),
+        ("linux", {"atspi", "scrot"}),
+        ("windows", {"pywinauto"}),
+    ])
+    def test_summary_has_required_keys(self, monkeypatch, platform_name, expected_keys):
+        monkeypatch.setattr(CapabilityDetector, "current_platform", lambda: platform_name)
+        monkeypatch.setattr(CapabilityDetector, "macos_accessibility_permission", lambda: False)
+        monkeypatch.setattr(CapabilityDetector, "screencapture_available", lambda: False)
         summary = CapabilityDetector.summary()
-        assert "platform" in summary
+        assert summary["platform"] == platform_name
         assert "playwright" in summary
         assert "appium" in summary
-        assert "macos_accessibility_permission" in summary
-        assert "screencapture" in summary
+        assert expected_keys <= summary.keys()
 
 
 from qa_ai.interactive_runtime.drivers.driver_factory import DriverFactory, NullDriver

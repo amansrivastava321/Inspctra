@@ -54,6 +54,7 @@ def test_backend_job_uses_python_311_and_runs_all_required_checks() -> None:
     assert setup["with"]["python-version"] == "3.11"
     assert setup["with"]["cache"] == "pip"
     assert setup["with"]["cache-dependency-path"] == "requirements.txt"
+    assert "python -m playwright install --with-deps chromium" in commands
     assert "python -m compileall qa_ai/" in commands
     assert "python -u -m pytest --collect-only tests/ -vv -s" in commands
     assert "python -m pytest tests/smoke/test_full_journey.py -v" in commands

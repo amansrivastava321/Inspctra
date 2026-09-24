@@ -30,6 +30,9 @@ jobs:
       - name: Check Python compilation
         run: python -m compileall qa_ai/
 
+      - name: Install Chromium for browser tests
+        run: python -m playwright install --with-deps chromium
+
       - name: Collect tests
         timeout-minutes: 3
         env:
