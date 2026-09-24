@@ -219,7 +219,11 @@ def test_evidence_bound(env):
     assert row(env)["evidence_comparison"]["baseline_count"] is None
 
 
-@pytest.mark.parametrize("a,b,state", [("Timeout", " timeout ", "same_signature"), ("Timeout", "Network", "different_signature"), ("", "", "unavailable"), ("x" * 513, "x" * 514, "unavailable")])
+@pytest.mark.parametrize(
+    "a,b,state",
+    [("Timeout", " timeout ", "same_signature"), ("Timeout", "Network", "different_signature"), ("", "", "unavailable"), ("x" * 513, "x" * 514, "unavailable")],
+    ids=["normalized-match", "different", "empty", "oversized"],
+)
 def test_signature(env, a, b, state):
     env[2]("b", [step(status="failed", error=a)])
     env[2]("c", [step(status="failed", error=b)])
@@ -301,7 +305,11 @@ def test_unique_owned_type_hash_comparison(env, count, equal):
     assert summary["hash_comparison"] == ("unavailable" if count > 1 else "same_hash" if equal else "different_hash")
 
 
-@pytest.mark.parametrize("payload", ["not json", "{}", '["not a result"]', json.dumps([step()] * 501), json.dumps([step(notes="x" * 2_097_152)])])
+@pytest.mark.parametrize(
+    "payload",
+    ["not json", "{}", '["not a result"]', json.dumps([step()] * 501), json.dumps([step(notes="x" * 2_097_152)])],
+    ids=["invalid-json", "not-array", "invalid-result", "too-many-results", "oversized-result"],
+)
 def test_unusable_result_set_never_invents_one_sided(env, payload):
     env[2]("b", step_results=payload)
     data = result(env)

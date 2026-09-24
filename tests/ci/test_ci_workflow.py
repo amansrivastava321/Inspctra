@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
+import sys
 
 import yaml
 
@@ -71,6 +73,22 @@ def test_collection_is_scoped_bounded_and_emits_stacks_on_timeout() -> None:
     assert "--collect-only tests/ -vv -s" in collection["run"]
     assert "continue-on-error" not in collection
     assert "||" not in collection["run"]
+
+
+def test_collected_test_names_do_not_embed_large_payloads() -> None:
+    """Keep oversized test data out of CI logs and runner problem matchers."""
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "tests/"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, "Backend test collection failed"
+    node_ids = [line for line in result.stdout.splitlines() if line.startswith("tests/") and "::" in line]
+    assert node_ids, "No backend tests collected"
+    longest = max(map(len, node_ids))
+    assert longest <= 512, f"Test name has {longest} characters; use explicit parameter IDs"
 
 
 def test_frontend_job_uses_frozen_dependencies_and_fails_on_lint_errors() -> None:
