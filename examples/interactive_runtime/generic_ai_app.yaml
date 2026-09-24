@@ -1,0 +1,63 @@
+# generic_ai_app.yaml - App that uses a local AI model (Ollama).
+#
+# Demonstrates: web app + local Ollama vision model.
+# AI model connector checks model availability before test starts.
+#
+# Dry-run:
+#   python -m qa_ai.cli validate-runtime \
+#     --pack examples/interactive_runtime/generic_ai_app.yaml --dry-run
+
+app_name: Generic AI-Powered App
+app_type: web
+working_dir: .
+permission_required: true
+screenshot_enabled: true
+
+permissions:
+  launch_app: ask
+  take_screenshots: ask
+  interact_with_ui: ask
+  call_external_apis: never
+  call_ai_providers: ask
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+vision_fallback:
+  enabled: true
+  provider: local_ollama
+  model: qwen2.5vl:7b
+  require_approval: true
+
+runtime_connectors:
+  enabled: true
+  stop_on_failure: false
+  stop_after_test: true
+  connectors:
+    - connector_id: backend
+      connector_type: backend_service
+      name: App Backend
+      enabled: true
+      required: false
+      launch_command: "uvicorn app.main:app --host 127.0.0.1 --port 8000"
+      working_dir: "."
+      readiness_url: "http://127.0.0.1:8000/health"
+      api_base_url: "http://127.0.0.1:8000"
+      requires_permission: true
+
+    - connector_id: ollama_vision
+      connector_type: ai_model
+      name: Ollama Vision Model
+      enabled: true
+      required: true
+      model_provider: ollama
+      model_name: qwen2.5vl:7b
+      requires_permission: false
+      allow_external_calls: false
+
+    - connector_id: frontend
+      connector_type: web_browser
+      name: Web Frontend
+      enabled: true
+      required: true
+      readiness_url: "http://127.0.0.1:3000"
+      requires_permission: true

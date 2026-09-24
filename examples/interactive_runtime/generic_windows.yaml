@@ -1,0 +1,47 @@
+# generic_windows.yaml — Generic Windows native application interactive testing
+# Requires: Windows OS + pywinauto installed.
+#
+# Setup:
+#   pip install pywinauto
+#
+# Usage (dry-run — run on Windows):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/generic_windows.yaml --dry-run
+
+app_name: MyWindowsApp
+app_type: native_windows
+working_dir: .
+launch_command: "start MyWindowsApp.exe"
+readiness_timeout_seconds: 30
+
+ui_automation:
+  accessibility_timeout_seconds: 10
+
+windows:
+  use_uia: true
+
+permission_required: true
+screenshot_enabled: true
+log_capture_enabled: false
+dangerous_actions_require_approval: true
+
+max_actions: 30
+max_duration_seconds: 300
+output_dir: artifacts
+
+test_objectives:
+  - "Main window"
+  - "Toolbar"
+  - "Form inputs"
+
+permissions:
+  launch_app: ask
+  interact_with_ui: ask
+  take_screenshots: ask
+  call_external_apis: ask
+  call_ai_providers: always_ask
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+# NOTE: Requires Windows OS. Returns CapabilityGap on macOS/Linux.
+# Install pywinauto: pip install pywinauto
+# UIA backend works best with modern Windows apps.

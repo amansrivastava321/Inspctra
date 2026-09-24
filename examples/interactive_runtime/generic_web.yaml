@@ -1,0 +1,93 @@
+# generic_web.yaml — Generic web application interactive testing
+# Replace app_name, working_dir, launch_command, and readiness_url for your app.
+#
+# Usage (dry-run):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/generic_web.yaml --dry-run
+#
+# Usage (live, AI-guided):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/generic_web.yaml --live-guided --ai-guided --max-actions 30
+
+app_name: MyWebApp
+app_type: web
+working_dir: .
+launch_command: "echo 'Start your web server separately'"
+readiness_url: http://localhost:3000/health
+readiness_timeout_seconds: 60
+
+ui_automation:
+  preferred_backend: null
+  vision_fallback_enabled: false
+  accessibility_timeout_seconds: 10
+
+permission_required: true
+screenshot_enabled: true
+log_capture_enabled: true
+database_verification_enabled: false
+backend_verification_enabled: false
+dangerous_actions_require_approval: true
+
+max_actions: 50
+max_duration_seconds: 600
+output_dir: artifacts
+
+test_objectives:
+  - "Login"
+  - "Navigation"
+  - "Form submission"
+  - "Error handling"
+
+logs:
+  capture_stdout: true
+  capture_stderr: true
+  expected_tags: []
+  redact_patterns:
+    - "password=[^&\\s]+"
+    - "token=[^&\\s]+"
+    - "Bearer [\\w\\-\\.]+"
+
+permissions:
+  launch_app: ask
+  interact_with_ui: ask
+  take_screenshots: ask
+  call_external_apis: ask
+  call_ai_providers: always_ask
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+vision_fallback:
+  enabled: false
+  provider: local_ollama
+  model: qwen2.5vl:7b
+  require_approval: true
+  max_coordinate_clicks: 20
+
+ai_runtime:
+  ai_guidance:
+    enabled: false
+    provider: local_ollama
+    model: qwen2.5vl:7b
+    allow_cloud: false
+    require_approval_for_ai_calls: true
+  vision_analysis:
+    enabled: false
+    provider: local_ollama
+    model: qwen2.5vl:7b
+    fallback_to_accessibility_tree: true
+    max_coordinate_click_confidence: 0.6
+  live_guided:
+    enabled: false
+    print_steps: true
+    write_markdown_trace: true
+    write_json_trace: true
+    pause_on_fail: false
+    pause_on_unclear: false
+  evidence_grounding:
+    pass_requires_evidence: true
+    ai_only_max_confidence: 0.5
+    unclear_on_missing_evidence: true
+    require_screenshot_for_ui_actions: true
+  curiosity:
+    enabled: true
+    max_actions: 30
+    avoid_destructive_actions: true
+    prioritize_untested_elements: true

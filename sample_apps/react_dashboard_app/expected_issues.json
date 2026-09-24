@@ -1,0 +1,24 @@
+{
+  "issues": [
+    {
+      "issue_id": "admin_endpoint_missing_auth",
+      "keywords": ["auth", "admin", "endpoint", "/api/admin/users"]
+    },
+    {
+      "issue_id": "duplicate_settings_submit",
+      "keywords": ["duplicate", "idempotency", "submission", "save"]
+    },
+    {
+      "issue_id": "weak_error_handling",
+      "keywords": ["error handling", "failed", "exception"]
+    },
+    {
+      "issue_id": "retry_logic_debt",
+      "keywords": ["retry", "backoff", "jitter"]
+    },
+    {
+      "issue_id": "ui_inconsistency",
+      "keywords": ["style", "ui", "button", "todo"]
+    }
+  ]
+}

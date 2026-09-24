@@ -1,0 +1,46 @@
+# generic_mobile_ios.yaml - Generic iOS app connector example.
+# Requires macOS + Xcode.
+#
+# Prerequisites:
+#   1. Install appium: npm install -g appium
+#   2. appium driver install xcuitest
+#   3. Start Appium: appium --address 127.0.0.1 --port 4723
+#   4. Connect device or start Simulator
+#   5. Set bundle_id below
+
+app_name: Generic iOS App
+app_type: ios
+working_dir: .
+launch_command: ""
+permission_required: true
+screenshot_enabled: true
+
+permissions:
+  launch_app: ask
+  take_screenshots: ask
+  interact_with_ui: ask
+  call_external_apis: never
+  call_ai_providers: ask
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+mobile:
+  appium_enabled: true
+  appium_server_url: "http://127.0.0.1:4723"
+
+runtime_connectors:
+  enabled: true
+  stop_on_failure: true
+  stop_after_test: true
+  connectors:
+    - connector_id: ios_app
+      connector_type: mobile_app
+      name: iOS App
+      enabled: true
+      required: true
+      app_type: ios
+      bundle_id: "com.example.MyApp"   # Replace with real bundle ID
+      # app_path: "/path/to/app.ipa"   # Uncomment to install IPA
+      readiness_url: "http://127.0.0.1:4723"
+      readiness_timeout_seconds: 90
+      requires_permission: true

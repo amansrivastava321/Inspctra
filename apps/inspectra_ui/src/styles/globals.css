@@ -1,0 +1,215 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: #08090b;
+  color: #ececf1;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Screen-reader only — visually hidden but in accessibility tree */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 9px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+/* Focus */
+:focus-visible {
+  outline: 2px solid rgba(91,140,255,0.6);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: rgba(91,140,255,0.28);
+  color: #ececf1;
+}
+
+/* Mono */
+code, pre, .mono {
+  font-family: 'JetBrains Mono', 'Geist Mono', monospace;
+}
+
+button { cursor: pointer; border: none; background: none; font: inherit; }
+input, textarea, select { font: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* Prevent iOS font zoom on inputs smaller than 16px */
+@media (max-width: 767px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideIn {
+  from { transform: translateX(-8px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideInSidebar {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+.animate-spin    { animation: spin 1s linear infinite; }
+.animate-pulse   { animation: pulse 2s ease-in-out infinite; }
+.animate-fade-in { animation: fadeIn 0.2s ease-out; }
+
+/* ── Responsive layout helpers ───────────────────────────────────────────── */
+
+/* Tables that scroll horizontally instead of clipping */
+.resp-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 2-column detail grids that stack on mobile */
+.resp-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Stats row that wraps on mobile */
+.resp-stats-row {
+  display: flex;
+  gap: 12px;
+}
+
+@media (max-width: 767px) {
+  .resp-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .resp-stats-row {
+    flex-wrap: wrap;
+  }
+
+  .resp-stats-row > * {
+    min-width: calc(50% - 6px);
+  }
+
+  /* Hide section breadcrumb text on mobile to save space */
+  .topbar-section-text {
+    display: none;
+  }
+
+  /* Compact page headers on mobile */
+  .page-header-title {
+    font-size: 18px !important;
+  }
+
+  /* Mobile sidebar animation */
+  .mobile-sidebar-overlay {
+    animation: slideInSidebar 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* Ensure nav items are tall enough to tap */
+  .sidebar-nav-item {
+    min-height: 44px !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+  /* Topbar hamburger — full tap target */
+  .topbar-hamburger {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 8px !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .resp-detail-grid {
+    gap: 12px !important;
+  }
+
+  /* Slightly smaller stats on very small screens */
+  .resp-stats-row > * {
+    min-width: 100%;
+  }
+}
+
+/* ── Run investigation layout ────────────────────────────────────────────── */
+
+.run-investigation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);
+}
+
+.run-investigation-main {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.run-evidence-column > aside:first-of-type {
+  position: sticky;
+  top: 0;
+}
+
+@media (max-width: 900px) {
+  .run-investigation-layout {
+    display: block;
+    overflow-y: auto !important;
+  }
+
+  .run-investigation-main {
+    display: block;
+    overflow: visible;
+  }
+
+  .run-timeline-column {
+    width: auto !important;
+    max-height: 320px;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .run-evidence-column {
+    border-left: 0 !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: visible !important;
+  }
+
+  .run-evidence-column > aside:first-of-type {
+    position: static;
+  }
+}

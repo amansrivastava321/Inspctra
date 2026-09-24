@@ -1,0 +1,52 @@
+# generic_ios.yaml — Generic iOS app testing via Appium + XCUITest
+# Requires: macOS + Xcode + Appium Python client + Appium server + XCUITest driver.
+#
+# Setup:
+#   pip install Appium-Python-Client
+#   npm install -g appium
+#   appium driver install xcuitest
+#   Start Appium: appium
+#   Connect iOS device or start simulator
+#
+# Usage (dry-run):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/generic_ios.yaml --dry-run
+
+app_name: MyIOSApp
+app_type: ios
+working_dir: .
+launch_command: "echo 'Appium manages launch'"
+readiness_timeout_seconds: 60
+
+mobile:
+  appium_enabled: true
+  appium_server_url: http://localhost:4723
+  device_name: iPhone Simulator
+  platform_version: "17.0"
+  app_path: /path/to/your/app.ipa
+
+permission_required: true
+screenshot_enabled: true
+log_capture_enabled: false
+dangerous_actions_require_approval: true
+
+max_actions: 20
+max_duration_seconds: 300
+output_dir: artifacts
+
+test_objectives:
+  - "Main screen"
+  - "Navigation"
+  - "Forms"
+
+permissions:
+  launch_app: ask
+  interact_with_ui: ask
+  take_screenshots: ask
+  call_external_apis: ask
+  call_ai_providers: always_ask
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+# NOTE: Requires macOS with Xcode. Appium XCUITest driver required.
+# appium_enabled=false returns CapabilityGap immediately.
+# See: https://appium.io/docs/en/drivers/ios-xcuitest/

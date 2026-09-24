@@ -1,0 +1,24 @@
+{
+  "issues": [
+    {
+      "issue_id": "missing_auth_users_endpoint",
+      "keywords": ["missing auth", "endpoint auth", "unauthenticated", "/users"]
+    },
+    {
+      "issue_id": "duplicate_order_submission",
+      "keywords": ["idempotency", "duplicate submission", "orders"]
+    },
+    {
+      "issue_id": "broken_retry_logic",
+      "keywords": ["retry", "loop", "swallow"]
+    },
+    {
+      "issue_id": "todo_fixme_debt",
+      "keywords": ["todo", "fixme", "technical debt"]
+    },
+    {
+      "issue_id": "missing_database_indexes",
+      "keywords": ["index", "database", "schema"]
+    }
+  ]
+}

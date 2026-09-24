@@ -1,0 +1,52 @@
+# generic_android.yaml — Generic Android app testing via Appium
+# Requires: Appium Python client + Appium server + Android device/emulator.
+#
+# Setup:
+#   pip install Appium-Python-Client
+#   npm install -g appium
+#   appium driver install uiautomator2
+#   Start Appium: appium
+#   Connect device or start emulator: adb devices
+#
+# Usage (dry-run):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/generic_android.yaml --dry-run
+
+app_name: MyAndroidApp
+app_type: android
+working_dir: .
+launch_command: "echo 'Appium manages launch'"
+readiness_timeout_seconds: 60
+
+mobile:
+  appium_enabled: true
+  appium_server_url: http://localhost:4723
+  device_name: emulator-5554
+  platform_version: "13"
+  app_path: /path/to/your/app.apk
+
+permission_required: true
+screenshot_enabled: true
+log_capture_enabled: false
+dangerous_actions_require_approval: true
+
+max_actions: 20
+max_duration_seconds: 300
+output_dir: artifacts
+
+test_objectives:
+  - "Main screen"
+  - "Navigation"
+  - "Forms"
+
+permissions:
+  launch_app: ask
+  interact_with_ui: ask
+  take_screenshots: ask
+  call_external_apis: ask
+  call_ai_providers: always_ask
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+# NOTE: Appium must be running before starting the test.
+# appium_enabled=false returns CapabilityGap immediately.
+# Set device_name and platform_version to match your connected device.

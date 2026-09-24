@@ -1,0 +1,31 @@
+name: flutter
+description: Flutter/mobile codebase static and runtime-lite profile
+platform: android
+phases:
+  - discovery
+  - planning
+  - environment
+  - security_audit
+  - code_quality_audit
+  - dependency_audit
+  - release_readiness_audit
+  - evidence
+  - finding_correlation
+  - root_cause_analysis
+  - rca
+  - runtime_validation
+  - behavior_analysis
+  - execution_replay
+  - evidence_correlation
+  - software_health_assessment
+  - improvement_planning
+  - change_impact_analysis
+  - remediation_planning
+  - retest_orchestration
+  - regression_guard
+  - quality_tracking
+  - learning_update
+  - report_generation
+  - dashboard_build
+  - visualization_export
+  - reporting

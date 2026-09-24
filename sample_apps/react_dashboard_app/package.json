@@ -1,0 +1,13 @@
+{
+  "name": "react-dashboard-app",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "axios": "0.21.1"
+  },
+  "scripts": {
+    "start": "echo \"sample app\""
+  }
+}

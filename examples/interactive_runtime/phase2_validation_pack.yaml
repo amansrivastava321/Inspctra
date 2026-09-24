@@ -1,0 +1,113 @@
+# phase2_validation_pack.yaml — Phase 2 real-world validation pack for Inspectra.
+#
+# Targets: FlowBook (flutter_macos), Videomation (flutter_web),
+#          generic web, generic macOS, optional Android/iOS.
+#
+# Dry-run:
+#   python -m qa_ai.cli validate-runtime \
+#     --pack examples/interactive_runtime/phase2_validation_pack.yaml \
+#     --dry-run
+#
+# Real run (asks permission before each launch):
+#   python -m qa_ai.cli validate-runtime \
+#     --pack examples/interactive_runtime/phase2_validation_pack.yaml \
+#     --repeat 3
+#
+# Single target dry-run:
+#   python -m qa_ai.cli validate-runtime \
+#     --pack examples/interactive_runtime/phase2_validation_pack.yaml \
+#     --target generic_web --dry-run
+
+pack_name: phase2_core_validation
+description: >
+  Real-world validation pack for Inspectra Interactive Runtime Testing.
+  Covers macOS native, Flutter macOS, Flutter web, generic web, Android (optional), iOS (optional).
+  Use --dry-run to inspect capabilities without launching apps.
+
+targets:
+  - target_id: flowbook_macos
+    app_name: FlowBook
+    app_type: flutter_macos
+    config_path: examples/interactive_runtime/flowbook.yaml
+    expected_platform: darwin
+    validation_mode: live_guided_ai
+    max_actions: 25
+    allow_real_launch: ask
+    allow_external_calls: ask
+    allow_database_checks: false
+    allow_screenshots: ask
+    notes: >
+      FlowBook Flutter macOS. Accessibility tree may be weak (Flutter testability_issues expected).
+      Requires Accessibility permission in System Settings.
+
+  - target_id: videomation_web
+    app_name: Videomation
+    app_type: flutter_web
+    config_path: examples/interactive_runtime/videomation.yaml
+    validation_mode: live_guided_ai
+    max_actions: 25
+    allow_real_launch: ask
+    allow_external_calls: ask
+    allow_database_checks: false
+    allow_screenshots: ask
+    notes: >
+      Videomation Flutter web app. Requires Playwright + Chromium.
+
+  - target_id: generic_web
+    app_name: Generic Web App
+    app_type: web
+    config_path: examples/interactive_runtime/generic_web.yaml
+    validation_mode: live_guided
+    max_actions: 15
+    allow_real_launch: ask
+    allow_external_calls: "never"
+    allow_database_checks: false
+    allow_screenshots: ask
+    notes: Generic web target. Update config to point to real app URL.
+
+  - target_id: generic_macos
+    app_name: Generic macOS App
+    app_type: native_macos
+    config_path: examples/interactive_runtime/generic_macos.yaml
+    expected_platform: darwin
+    validation_mode: live_guided
+    max_actions: 20
+    allow_real_launch: ask
+    allow_external_calls: ask
+    allow_database_checks: false
+    allow_screenshots: ask
+    expected_capabilities:
+      - can_observe_screen
+      - can_click
+    notes: >
+      Generic macOS native app target. Requires Accessibility permission.
+      Update config launch_command to point to your real macOS app.
+
+  - target_id: generic_android
+    app_name: Generic Android App
+    app_type: android
+    config_path: examples/interactive_runtime/generic_android.yaml
+    validation_mode: live_guided
+    max_actions: 20
+    allow_real_launch: ask
+    allow_external_calls: ask
+    allow_database_checks: false
+    allow_screenshots: ask
+    notes: >
+      Optional. Requires Appium server + device/emulator.
+      Set mobile.appium_enabled=true in generic_android.yaml before use.
+
+  - target_id: generic_ios
+    app_name: Generic iOS App
+    app_type: ios
+    config_path: examples/interactive_runtime/generic_ios.yaml
+    expected_platform: darwin
+    validation_mode: live_guided
+    max_actions: 20
+    allow_real_launch: ask
+    allow_external_calls: ask
+    allow_database_checks: false
+    allow_screenshots: ask
+    notes: >
+      Optional. Requires macOS + Xcode + Appium XCUITest driver.
+      Set mobile.appium_enabled=true in generic_ios.yaml before use.

@@ -1,0 +1,58 @@
+# generic_mobile_android.yaml - Generic Android app connector example.
+#
+# Prerequisites:
+#   1. Start Appium: appium --address 127.0.0.1 --port 4723
+#   2. Connect device or start emulator: adb devices
+#   3. Set package_name below
+#
+# Dry-run:
+#   python -m qa_ai.cli validate-runtime \
+#     --pack examples/interactive_runtime/generic_mobile_android.yaml --dry-run
+
+app_name: Generic Android App
+app_type: android
+working_dir: .
+launch_command: ""
+permission_required: true
+screenshot_enabled: true
+
+permissions:
+  launch_app: ask
+  take_screenshots: ask
+  interact_with_ui: ask
+  call_external_apis: never
+  call_ai_providers: ask
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+mobile:
+  appium_enabled: true
+  appium_server_url: "http://127.0.0.1:4723"
+  device_name: ""
+  platform_version: ""
+
+runtime_connectors:
+  enabled: true
+  stop_on_failure: true
+  stop_after_test: true
+  connectors:
+    - connector_id: android_app
+      connector_type: mobile_app
+      name: Android App
+      enabled: true
+      required: true
+      app_type: android
+      package_name: "com.example.myapp"   # Replace with real package name
+      # app_path: "/path/to/app.apk"      # Uncomment to install APK
+      readiness_url: "http://127.0.0.1:4723"
+      readiness_timeout_seconds: 60
+      requires_permission: true
+
+    - connector_id: ollama
+      connector_type: ai_model
+      name: Vision Model
+      enabled: false
+      required: false
+      model_provider: ollama
+      model_name: qwen2.5vl:7b
+      requires_permission: false

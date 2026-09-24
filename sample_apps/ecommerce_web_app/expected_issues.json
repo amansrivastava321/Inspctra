@@ -1,0 +1,24 @@
+{
+  "issues": [
+    {
+      "issue_id": "orders_missing_auth",
+      "keywords": ["auth", "orders", "/api/orders"]
+    },
+    {
+      "issue_id": "checkout_duplicate_submission",
+      "keywords": ["idempotency", "duplicate", "checkout", "payment"]
+    },
+    {
+      "issue_id": "sync_retry_problem",
+      "keywords": ["retry", "sync", "500", "temporary failure"]
+    },
+    {
+      "issue_id": "missing_indexes",
+      "keywords": ["index", "schema", "order_id", "user_id"]
+    },
+    {
+      "issue_id": "weak_error_handling",
+      "keywords": ["error handling", "error", "fixme", "todo"]
+    }
+  ]
+}

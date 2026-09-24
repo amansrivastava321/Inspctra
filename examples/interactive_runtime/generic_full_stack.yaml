@@ -1,0 +1,70 @@
+# generic_full_stack.yaml - Generic full-stack app with connectors.
+#
+# Demonstrates: backend + database + browser + AI model all connected
+# before the test loop runs.
+#
+# Dry-run:
+#   python -m qa_ai.cli validate-runtime \
+#     --pack examples/interactive_runtime/generic_full_stack.yaml --dry-run
+
+app_name: Generic Full Stack App
+app_type: web
+working_dir: .
+launch_command: ""
+readiness_url: "http://127.0.0.1:3000"
+readiness_timeout_seconds: 60
+permission_required: true
+screenshot_enabled: true
+log_capture_enabled: true
+
+permissions:
+  launch_app: ask
+  interact_with_ui: ask
+  take_screenshots: ask
+  call_external_apis: ask
+  call_ai_providers: ask
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+runtime_connectors:
+  enabled: true
+  stop_on_failure: true
+  stop_after_test: true
+  connectors:
+    - connector_id: backend
+      connector_type: backend_service
+      name: Backend API
+      enabled: true
+      required: true
+      launch_command: "uvicorn app.main:app --host 127.0.0.1 --port 8000"
+      working_dir: "."
+      readiness_url: "http://127.0.0.1:8000/health"
+      api_base_url: "http://127.0.0.1:8000"
+      readiness_timeout_seconds: 60
+      requires_permission: true
+
+    - connector_id: database
+      connector_type: database
+      name: SQLite Database
+      enabled: false
+      required: false
+      database_type: sqlite
+      database_path: "./data/app.db"
+      requires_permission: true
+
+    - connector_id: frontend
+      connector_type: web_browser
+      name: Web Frontend
+      enabled: true
+      required: true
+      readiness_url: "http://127.0.0.1:3000"
+      requires_permission: true
+
+    - connector_id: ollama
+      connector_type: ai_model
+      name: Local Vision Model
+      enabled: true
+      required: false
+      model_provider: ollama
+      model_name: qwen2.5vl:7b
+      requires_permission: false

@@ -1,0 +1,157 @@
+# interactive_runtime.yaml — FlowBook macOS App
+# Owner Dashboard AI Briefing Runtime Smoke Test
+#
+# Usage (dry-run first):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/flowbook.yaml --dry-run
+#
+# Usage (live, requires app at working_dir):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/flowbook.yaml
+
+app_name: FlowBook
+app_type: flutter_macos
+working_dir: /Users/aman/Documents/Projects/FlowBook/apps/flowbook_app
+launch_command: flutter run -d macos
+
+ui_automation:
+  preferred_backend: null
+  vision_fallback_enabled: false
+  accessibility_timeout_seconds: 10
+
+macos:
+  bundle_id: null
+  use_applescript: true
+  screenshot_tool: screencapture
+
+# Poll this URL until HTTP 200 before starting interaction (if app has a local server)
+# readiness_url: http://localhost:3000/health
+readiness_timeout_seconds: 90
+
+permission_required: true
+screenshot_enabled: true
+log_capture_enabled: true
+database_verification_enabled: false
+backend_verification_enabled: false
+dangerous_actions_require_approval: true
+
+max_actions: 50
+max_duration_seconds: 1200
+output_dir: artifacts
+
+test_objectives:
+  - "AI Briefing"
+  - "AI Refresh"
+  - "Owner Dashboard"
+  - "Briefing"
+  - "Refresh"
+
+logs:
+  capture_stdout: true
+  capture_stderr: true
+  expected_tags:
+    - "[AI_CONFIG]"
+    - "[AI_ROUTE_SELECTED]"
+    - "[OPENROUTER_REQUEST]"
+    - "[OPENROUTER_RESPONSE]"
+    - "[OLLAMA_FALLBACK]"
+    - "[DETERMINISTIC_BRIEFING_USED]"
+    - "[OWNER_INSIGHTS_CLOUD_SUCCESS]"
+    - "[ERROR]"
+    - "[SYNC]"
+    - "[DB]"
+  # Patterns that should NOT appear in logs (API keys, tokens, passwords)
+  redact_patterns:
+    - "sk-or-[\\w\\-]+"
+    - "Bearer [\\w\\-\\.]+"
+
+database:
+  type: sqlite
+  enabled: false
+  read_only: true
+
+# Supabase (disabled by default — enable if you have test credentials)
+# supabase:
+#   enabled: false
+#   url_env: SUPABASE_URL
+#   key_env: SUPABASE_SERVICE_ROLE_KEY
+#   read_only: true
+
+permissions:
+  launch_app: ask
+  interact_with_ui: ask
+  take_screenshots: ask
+  call_external_apis: ask
+  call_ai_providers: always_ask       # AI provider calls always need explicit approval
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+# ── AI Runtime (Hybrid AI-Native Layer) ──────────────────────────────────────
+#
+# Usage with AI-guided mode:
+#   python -m qa_ai.cli interactive-test \
+#     --config examples/interactive_runtime/flowbook.yaml \
+#     --live-guided --ai-guided --max-actions 25 --dry-run
+
+ai_runtime:
+  ai_guidance:
+    enabled: false           # Set to true to enable AI oracle
+    provider: local_ollama
+    model: qwen2.5vl:7b
+    allow_cloud: false
+    require_approval_for_ai_calls: true
+
+  vision_analysis:
+    enabled: false           # Set to true if Ollama is running with qwen2.5vl
+    provider: local_ollama
+    model: qwen2.5vl:7b
+    fallback_to_accessibility_tree: true
+    max_coordinate_click_confidence: 0.6
+
+  live_guided:
+    enabled: false           # Set to true or pass --live-guided
+    print_steps: true
+    write_markdown_trace: true
+    write_json_trace: true
+    pause_on_fail: false
+    pause_on_unclear: false
+
+  evidence_grounding:
+    pass_requires_evidence: true
+    ai_only_max_confidence: 0.5
+    unclear_on_missing_evidence: true
+    require_screenshot_for_ui_actions: true
+
+  curiosity:
+    enabled: true
+    max_actions: 25
+    avoid_destructive_actions: true
+    prioritize_untested_elements: true
+
+  test_objective_config:
+    name: "Owner Dashboard AI functionality"
+    description: "Explore and verify AI insight functionality in the app."
+    priority: high
+
+  generic_expected_signals:
+    logs:
+      - "[AI_CONFIG]"
+      - "[AI_ROUTE_SELECTED]"
+      - "[OPENROUTER_REQUEST]"
+      - "[OPENROUTER_RESPONSE]"
+      - "[DETERMINISTIC_BRIEFING_USED]"
+    ui_text_any:
+      - "Cloud AI"
+      - "Local AI"
+      - "Smart Briefing"
+
+# NOTE: Native macOS desktop UI automation is a CAPABILITY GAP.
+# The screen_observer and ui_controller will detect this and record:
+#   capability: screen_observation_flutter_macos
+#   status: unavailable
+#   todo: Implement accessibility API bridge for native macOS automation
+#
+# Current verification for native apps is LOG-BASED only:
+# - Log tag matching for AI route selection
+# - Log verification for no secret leakage
+# - Screenshot via macOS screencapture (if approved separately)
+#
+# Full UI interaction requires: macOS Accessibility API bridge (not yet implemented).

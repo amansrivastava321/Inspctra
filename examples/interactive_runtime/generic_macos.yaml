@@ -1,0 +1,101 @@
+# generic_macos.yaml — Generic macOS native application interactive testing
+# Requires: macOS with Accessibility permission granted.
+#
+# Setup:
+#   System Settings → Privacy & Security → Accessibility → Enable your Terminal/IDE
+#
+# Usage (dry-run):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/generic_macos.yaml --dry-run
+#
+# Usage (live):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/generic_macos.yaml --live-guided --max-actions 20
+
+app_name: MyMacApp
+app_type: native_macos
+working_dir: .
+launch_command: "open -a MyMacApp"
+readiness_timeout_seconds: 30
+
+ui_automation:
+  preferred_backend: null
+  accessibility_timeout_seconds: 10
+
+macos:
+  bundle_id: null
+  use_applescript: true
+  screenshot_tool: screencapture
+  accessibility_permission_prompt: true
+
+permission_required: true
+screenshot_enabled: true
+log_capture_enabled: true
+database_verification_enabled: false
+backend_verification_enabled: false
+dangerous_actions_require_approval: true
+
+max_actions: 30
+max_duration_seconds: 300
+output_dir: artifacts
+
+test_objectives:
+  - "Main window"
+  - "Menu actions"
+  - "Form fields"
+
+logs:
+  capture_stdout: true
+  capture_stderr: true
+  expected_tags: []
+  redact_patterns:
+    - "Bearer [\\w\\-\\.]+"
+
+permissions:
+  launch_app: ask
+  interact_with_ui: ask
+  take_screenshots: ask
+  call_external_apis: ask
+  call_ai_providers: always_ask
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+vision_fallback:
+  enabled: false
+  provider: local_ollama
+  model: qwen2.5vl:7b
+  require_approval: true
+  max_coordinate_clicks: 10
+
+ai_runtime:
+  ai_guidance:
+    enabled: false
+    provider: local_ollama
+    model: qwen2.5vl:7b
+    allow_cloud: false
+    require_approval_for_ai_calls: true
+  vision_analysis:
+    enabled: false
+    provider: local_ollama
+    model: qwen2.5vl:7b
+    fallback_to_accessibility_tree: true
+    max_coordinate_click_confidence: 0.6
+  live_guided:
+    enabled: false
+    print_steps: true
+    write_markdown_trace: true
+    write_json_trace: true
+    pause_on_fail: true
+    pause_on_unclear: false
+  evidence_grounding:
+    pass_requires_evidence: true
+    ai_only_max_confidence: 0.5
+    unclear_on_missing_evidence: true
+    require_screenshot_for_ui_actions: true
+  curiosity:
+    enabled: true
+    max_actions: 20
+    avoid_destructive_actions: true
+    prioritize_untested_elements: true
+
+# NOTE: macOS native automation uses AppleScript + System Events.
+# Flutter apps may have poor accessibility labels. Add Semantics widgets.
+# See: https://api.flutter.dev/flutter/widgets/Semantics-class.html

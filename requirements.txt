@@ -1,0 +1,15 @@
+playwright
+ollama
+chromadb
+pyyaml
+rich
+fastapi
+jinja2>=3.1.0
+python-multipart>=0.0.9
+uvicorn
+pydantic
+pytest
+pillow
+python-dotenv
+requests
+weasyprint>=60.0

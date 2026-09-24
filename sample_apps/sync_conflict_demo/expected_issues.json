@@ -1,0 +1,24 @@
+{
+  "issues": [
+    {
+      "issue_id": "sync_endpoint_missing_auth",
+      "keywords": ["auth", "sync", "/sync/jobs"]
+    },
+    {
+      "issue_id": "conflict_resolution_bug",
+      "keywords": ["sync conflict", "version", "remote always wins"]
+    },
+    {
+      "issue_id": "retry_logic_broken",
+      "keywords": ["retry", "jitter", "delay"]
+    },
+    {
+      "issue_id": "duplicate_submission",
+      "keywords": ["duplicate", "dedupe", "submission"]
+    },
+    {
+      "issue_id": "todo_fixme_debt",
+      "keywords": ["todo", "fixme"]
+    }
+  ]
+}

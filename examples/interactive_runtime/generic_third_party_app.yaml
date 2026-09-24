@@ -1,0 +1,38 @@
+# generic_third_party_app.yaml - Black-box third-party app connector.
+#
+# Use for apps you don't own (e.g. testing integration with installed tools).
+# Black-box mode only: visible UI, no internal access.
+#
+# Start the app manually first, then run Inspectra.
+
+app_name: Third Party Desktop App
+app_type: native_macos
+working_dir: .
+permission_required: true
+screenshot_enabled: true
+
+permissions:
+  launch_app: ask
+  take_screenshots: ask
+  interact_with_ui: ask
+  call_external_apis: never
+  call_ai_providers: ask
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+runtime_connectors:
+  enabled: true
+  stop_on_failure: false   # optional — third-party app may already be running
+  stop_after_test: false   # do NOT terminate third-party apps on completion
+  connectors:
+    - connector_id: third_party_desktop
+      connector_type: third_party_app
+      name: Third Party Desktop App
+      enabled: true
+      required: false        # marks partial if not found; does not block
+      app_type: native_macos
+      process_name: ""       # e.g. "Safari", "Slack" — set to real process name
+      app_window_title: ""   # window title for attach (alternative to process_name)
+      requires_permission: true
+      allow_destructive_actions: false
+      allow_external_calls: false

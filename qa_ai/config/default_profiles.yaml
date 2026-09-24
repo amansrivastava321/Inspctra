@@ -1,0 +1,5 @@
+profiles:
+  web: web_app.yaml
+  api: api_service.yaml
+  flutter: flutter_app.yaml
+  full_stack: full_stack.yaml

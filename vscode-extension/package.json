@@ -1,0 +1,115 @@
+{
+  "name": "inspectra-qa",
+  "displayName": "Inspectra QA",
+  "description": "View Inspectra QA-AI audit findings and risk data inside VS Code",
+  "version": "0.1.0",
+  "publisher": "inspectra",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Inspectra QA",
+      "properties": {
+        "inspectra.dashboardUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8765",
+          "description": "URL of the running Inspectra local dashboard"
+        },
+        "inspectra.artifactsDir": {
+          "type": "string",
+          "default": "artifacts",
+          "description": "Relative path to the artifacts directory (used as fallback)"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "inspectra",
+          "title": "Inspectra QA",
+          "icon": "$(shield)"
+        }
+      ]
+    },
+    "views": {
+      "inspectra": [
+        {
+          "id": "inspectra.findings",
+          "name": "Findings"
+        },
+        {
+          "id": "inspectra.risk",
+          "name": "Risk & Summary"
+        },
+        {
+          "id": "inspectra.corpus",
+          "name": "Corpus"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "inspectra.refresh",
+        "title": "Inspectra: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "inspectra.openDashboard",
+        "title": "Inspectra: Open Dashboard"
+      },
+      {
+        "command": "inspectra.showFindingDetail",
+        "title": "Inspectra: Show Finding Detail"
+      },
+      {
+        "command": "inspectra.corpusConnect",
+        "title": "Inspectra: Connect to Corpus"
+      },
+      {
+        "command": "inspectra.corpusRetry",
+        "title": "Inspectra: Retry Corpus Connection"
+      },
+      {
+        "command": "inspectra.corpusDisconnect",
+        "title": "Inspectra: Disconnect Corpus"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "inspectra.refresh",
+          "when": "view == inspectra.findings || view == inspectra.risk || view == inspectra.corpus",
+          "group": "navigation"
+        },
+        {
+          "command": "inspectra.corpusConnect",
+          "when": "view == inspectra.corpus",
+          "group": "navigation@2"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.56.0"
+  },
+  "dependencies": {}
+}

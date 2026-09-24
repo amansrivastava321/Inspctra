@@ -1,0 +1,41 @@
+name: full_stack
+description: Full-stack application end-to-end audit profile
+platform: cross_platform
+phases:
+  - discovery
+  - planning
+  - environment
+  - execution
+  - exploration
+  - security_audit
+  - api_audit
+  - database_audit
+  - sync_audit
+  - code_quality_audit
+  - dependency_audit
+  - release_readiness_audit
+  - evidence
+  - finding_correlation
+  - root_cause_analysis
+  - rca
+  - runtime_validation
+  - scenario_execution
+  - behavior_analysis
+  - execution_replay
+  - evidence_correlation
+  - live_scenario_execution
+  - trace_capture
+  - replay_analysis
+  - visual_regression
+  - software_health_assessment
+  - improvement_planning
+  - change_impact_analysis
+  - remediation_planning
+  - retest_orchestration
+  - regression_guard
+  - quality_tracking
+  - learning_update
+  - report_generation
+  - dashboard_build
+  - visualization_export
+  - reporting

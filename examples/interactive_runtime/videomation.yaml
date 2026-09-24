@@ -1,0 +1,107 @@
+# interactive_runtime.yaml — Videomation (Flutter web + FastAPI backend)
+#
+# Tests the full flow: login → create project → generate story → generate
+# scenes → trigger video → verify clips + database
+#
+# Usage (dry-run first):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/videomation.yaml --dry-run
+#
+# Usage (live):
+#   python -m qa_ai.cli interactive-test --config examples/interactive_runtime/videomation.yaml
+
+app_name: Videomation
+app_type: flutter_web
+working_dir: /Users/aman/Documents/Projects/Videomation
+launch_command: flutter run -d chrome --web-port 3000
+
+ui_automation:
+  preferred_backend: null
+  vision_fallback_enabled: false
+
+# Wait for the web app to be reachable before testing
+readiness_url: http://localhost:3000
+readiness_timeout_seconds: 120
+
+permission_required: true
+screenshot_enabled: true
+log_capture_enabled: true
+database_verification_enabled: true
+backend_verification_enabled: true
+dangerous_actions_require_approval: true
+
+max_actions: 100
+max_duration_seconds: 1800
+output_dir: artifacts
+
+# Start the backend separately before running this test, or adjust launch_command
+# to use docker-compose / a startup script that launches both.
+backend_base_url: http://localhost:8000
+
+test_objectives:
+  - "Login"
+  - "Create Project"
+  - "Generate Story"
+  - "Generate Scenes"
+  - "Generate Video"
+  - "New Project"
+  - "Story"
+  - "Scenes"
+  - "Video"
+
+logs:
+  capture_stdout: true
+  capture_stderr: true
+  expected_tags:
+    - "[STORY_GEN]"
+    - "[SCENE_GEN]"
+    - "[VIDEO_GEN]"
+    - "[AI_ROUTE]"
+    - "[DB_WRITE]"
+    - "[CREDITS]"
+    - "[SUBSCRIPTION]"
+    - "[ERROR]"
+    - "[AUTH]"
+  redact_patterns:
+    - "Authorization: Bearer [\\w\\-\\.]+"
+    - "\"password\":\\s*\"[^\"]+\""
+    - "\"token\":\\s*\"[^\"]+\""
+
+database:
+  type: postgres
+  enabled: false                        # set to true with real test DB
+  read_only: true
+  url_env: TEST_DATABASE_URL            # must point to TEST DB, never production
+
+permissions:
+  launch_app: ask
+  interact_with_ui: ask
+  take_screenshots: ask
+  call_external_apis: ask
+  call_ai_providers: always_ask         # video generation may call paid AI
+  modify_database: always_ask
+  destructive_actions: always_ask
+
+# ── Test flow description ──────────────────────────────────────────────────────
+# Step 1:  Open app → wait for login screen
+# Step 2:  Enter test credentials (ask permission before submitting)
+# Step 3:  Navigate to project creation
+# Step 4:  Click "New Project" — fill title
+# Step 5:  Click "Generate Story" — REQUIRES AI PROVIDER APPROVAL
+#           Verify: story text appears in UI
+#           Verify: [STORY_GEN] tag in logs
+#           Verify: no error banner
+# Step 6:  Click "Generate Scenes" — REQUIRES AI PROVIDER APPROVAL
+#           Verify: scene list appears (count > 0)
+#           Verify: [SCENE_GEN] tag in logs
+# Step 7:  Click "Generate Video" — REQUIRES AI PROVIDER APPROVAL + CREDITS CHECK
+#           Verify: progress indicator appears
+#           Verify: [VIDEO_GEN] tag in logs
+#           Verify: clips appear in UI
+#           Verify: DB run status = "completed" (if DB enabled)
+# Step 8:  Verify no secrets in logs
+# Step 9:  Screenshot final state
+# Step 10: Save all evidence
+#
+# If login credentials are missing → status: blocked_missing_credentials
+# If AI provider is denied → flow continues with blocked verdict for that step
+# ──────────────────────────────────────────────────────────────────────────────

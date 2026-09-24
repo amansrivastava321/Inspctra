@@ -1,0 +1,24 @@
+{
+  "issues": [
+    {
+      "issue_id": "sync_missing_auth",
+      "keywords": ["auth", "token", "sync"]
+    },
+    {
+      "issue_id": "duplicate_sync_submission",
+      "keywords": ["duplicate", "submission", "sync"]
+    },
+    {
+      "issue_id": "offline_conflict_debt",
+      "keywords": ["offline", "conflict", "todo"]
+    },
+    {
+      "issue_id": "weak_error_handling",
+      "keywords": ["error handling", "error"]
+    },
+    {
+      "issue_id": "ui_inconsistency",
+      "keywords": ["ui", "style", "shape"]
+    }
+  ]
+}

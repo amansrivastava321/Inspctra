@@ -1,0 +1,75 @@
+# ── Secrets (never commit) ──────────────────────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+secrets.json
+**/secret_store.json
+
+# ── Python caches / build ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+*.so
+.pytest_cache/
+.benchmarks/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ── Virtual environments ────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Node / frontend build ───────────────────────────────────────────────
+node_modules/
+apps/inspectra_ui/dist/
+apps/inspectra_ui/node_modules/
+apps/inspectra_ui/playwright-report/
+apps/inspectra_ui/test-results/
+*.tsbuildinfo
+.vite/
+
+# ── Local databases (runtime state) ─────────────────────────────────────
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+data/*.db
+
+# ── Logs ────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Runtime-generated artifacts ─────────────────────────────────────────
+artifacts/**
+!artifacts/**/
+!artifacts/**/*.md
+validation_runs/*
+!validation_runs/.gitkeep
+workspaces/*
+!workspaces/.gitkeep
+
+# ── Historical / generated analysis trees ──────────────────────────────
+legacy_backup/
+static_analysis_semgrep_1/
+
+# ── Graphify output (large, regenerable) ────────────────────────────────
+graphify-out/
+.graphify_cached.json
+.graphify_semantic_new.json
+.graphify_uncached.txt
+
+# ── OS junk ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*~
