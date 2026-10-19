@@ -78,21 +78,21 @@ def test_gemini_is_tried_first_for_reasoning_when_configured() -> None:
     reason, chain = _chain(_settings(**CLOUD_ON, gemini_api_key="k"))
 
     assert reason == "cloud_first_specialist"
-    assert chain == ["gemini:gemini-2.5-pro", "ollama:qwen3.5:9b"]
+    assert chain == ["gemini:gemini-3.8-flash", "ollama:qwen3.5:9b"]
 
 
 def test_every_configured_provider_appears_in_preference_order() -> None:
     _, chain = _chain(_settings(**CLOUD_ON, gemini_api_key="g", groq_api_key="q", openrouter_api_key="o"))
 
     assert chain == [
-        "gemini:gemini-2.5-pro", "groq:llama-3.3-70b-versatile", "openrouter:openai/gpt-oss-120b:free", "ollama:qwen3.5:9b",
+        "gemini:gemini-3.8-flash", "groq:openai/gpt-oss-120b", "openrouter:openai/gpt-oss-120b:free", "ollama:qwen3.5:9b",
     ]
 
 
 def test_groq_leads_for_report_synthesis_where_speed_matters() -> None:
     _, chain = _chain(_settings(**CLOUD_ON, gemini_api_key="g", groq_api_key="q"), RoutingComponent.REPORT_SYNTHESIS)
 
-    assert chain[:2] == ["groq:llama-3.3-70b-versatile", "gemini:gemini-2.5-pro"]
+    assert chain[:2] == ["groq:openai/gpt-oss-120b", "gemini:gemini-3.8-flash"]
 
 
 def test_model_names_can_be_overridden() -> None:
@@ -158,7 +158,7 @@ def test_router_calls_gemini_and_reports_the_provider() -> None:
 
     result = router.route(RoutingComponent.STRUCTURED_REASONING, "question", {})
 
-    assert (result.success, result.provider, result.model) == (True, "gemini", "gemini-2.5-pro")
+    assert (result.success, result.provider, result.model) == (True, "gemini", "gemini-3.8-flash")
     assert gemini.prompts == ["question"]
 
 

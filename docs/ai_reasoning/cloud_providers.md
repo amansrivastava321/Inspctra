@@ -6,8 +6,27 @@ synthesis); verdicts always come from deterministic checks.
 
 | Provider | Default model | Good for |
 |---|---|---|
-| Gemini (Google AI Studio) | `gemini-2.5-pro` | Hard reasoning, long context |
-| Groq | `llama-3.3-70b-versatile` | Fast, cheap, high-volume tasks |
+| Gemini (Google AI Studio) | `gemini-3.8-flash` | Fast reasoning and coding, 1M-token context |
+| Groq | `openai/gpt-oss-120b` | Strong open reasoning and coding model, fast |
+
+Both defaults are available on the providers' free tiers. Providers retire models, so these names
+can go out of date: if a call fails with a 404 "model not found", list what your key can use
+(`GET <base_url>/models`) and set `QA_AI_GEMINI_MODEL` / `QA_AI_GROQ_MODEL`.
+
+### Free-tier limits (approximate, set by the providers and subject to change)
+
+| Provider | Model | Limits |
+|---|---|---|
+| Gemini | `gemini-3.8-flash` | about 10 requests/min, about 1,500/day |
+| Groq | `openai/gpt-oss-120b` | about 30 requests/min, 1,000/day, 8,000 tokens/min, 200,000 tokens/day |
+
+Check your account's live limits in Google AI Studio and the Groq console. Limits apply per account,
+not per key. A rate-limited call is not retried: the router moves on to the next provider
+(Gemini, then Groq, then OpenRouter, then the local model, then the deterministic fallback).
+
+**Privacy on free tiers:** Google may use prompts and responses from the free Gemini tier to improve
+its models, and human reviewers may read them. Do not send confidential or proprietary code through
+a free Gemini key; keep private-code mode on for such code.
 
 ## Turning it on
 
