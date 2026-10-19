@@ -30,6 +30,7 @@ from qa_ai.product_backend.event_stream import EventStream, format_sse, heartbea
 from qa_ai.product_backend.models import LiveRunRecord, ReportFinding, ReportRecord, EvidenceFile, ManualStepResultRequest, Provenance, RunEventRecord, RetestFailedResponse
 from qa_ai.product_backend.run_manager import RunManager, compute_run_provenance
 from qa_ai.product_backend.run_event_recorder import RunEventRecorder
+from qa_ai.product_backend.run_verdict import count_steps, derive_verdict, verdict_for_run
 from qa_ai.product_backend.run_comparison import RunComparisonError, build_run_comparison
 from qa_ai.product_backend.storage import (
     ActiveRetestChildError,
@@ -202,7 +203,12 @@ def _enrich_run(row: dict, storage: ProductStorage) -> LiveRunRecord:
     if pack_id:
         steps = extract_run_steps(pack_id, storage)
 
-    return LiveRunRecord(**row, app_name=app_name, pack_name=pack_name, steps=steps)
+    return LiveRunRecord(
+        **{**row, "verdict": verdict_for_run(row)},
+        app_name=app_name,
+        pack_name=pack_name,
+        steps=steps,
+    )
 
 
 @router.get("/runs", response_model=List[LiveRunRecord])
@@ -327,31 +333,16 @@ def _compute_report(
     """Compute report summary data from a run's step_results. No LLM, no network."""
     step_results = row.get("step_results") or []
 
-    # Count statuses
-    counts: Dict[str, int] = {}
-    for sr in step_results:
-        s = str(sr.get("status", "other"))
-        counts[s] = counts.get(s, 0) + 1
+    step_counts = count_steps(step_results)
+    total = step_counts.total
+    pass_count = step_counts.passed
+    fail_count = step_counts.failed
+    blocked_count = step_counts.blocked
+    skipped_count = step_counts.skipped
+    dry_count = step_counts.dry_run
 
-    total = len(step_results)
-    pass_count = counts.get("passed", 0)
-    fail_count = counts.get("failed", 0) + counts.get("error", 0) + counts.get("inconclusive", 0)
-    blocked_count = counts.get("blocked", 0)
-    skipped_count = counts.get("skipped", 0)
-    dry_count = counts.get("dry_run_only", 0)
-
-    # Honest verdict
-    if total == 0:
-        verdict = "pending"
-    elif dry_count == total:
-        # All steps ran in dry-run mode. Run completed but no real evidence collected.
-        verdict = "dry_run"
-    elif fail_count > 0 or blocked_count > 0:
-        verdict = "fail"
-    elif pass_count + skipped_count == total:
-        verdict = "pass"
-    else:
-        verdict = "unclear"
+    # Honest verdict (shared with the live run record so the two never disagree)
+    verdict = derive_verdict(step_counts)
 
     # Build findings
     findings: List[Dict[str, Any]] = []

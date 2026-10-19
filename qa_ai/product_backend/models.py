@@ -400,6 +400,8 @@ class LiveRunRecord(BaseModel):
     retest_of: Optional[str] = None  # parent run_id if this is a retest run
     execution_mode: str = "automated"  # manual | automated
     steps: List[Dict[str, Any]] = Field(default_factory=list)
+    # Derived from step_results once the run is finished (see run_verdict.py); None while in flight.
+    verdict: Optional[str] = None
     # Denormalized display names — populated by the GET handler via joins
     app_name: Optional[str] = None
     pack_name: Optional[str] = None

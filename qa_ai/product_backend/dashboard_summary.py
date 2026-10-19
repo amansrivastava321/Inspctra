@@ -9,6 +9,7 @@ from datetime import datetime, time, timedelta, timezone
 import re
 from typing import Any, Iterable, Mapping, Optional
 
+from qa_ai.product_backend.run_verdict import verdict_for_run
 from qa_ai.product_backend.models import (
     DashboardCoverage,
     DashboardDailyBucket,
@@ -368,7 +369,7 @@ def build_dashboard_summary(
         status = str(run.get("status") or "").casefold()
         status_counts[status] = status_counts.get(status, 0) + 1
 
-    recent_models = [LiveRunRecord(**run) for run in recent_runs[:10]]
+    recent_models = [LiveRunRecord(**{**run, "verdict": verdict_for_run(run)}) for run in recent_runs[:10]]
     project_count = len(projects)
     app_count = len(apps)
     pack_count = len(packs)
