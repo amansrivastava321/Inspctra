@@ -609,8 +609,8 @@ export interface AccessibilityViolationsMetadata {
 }
 
 export interface VisualDiffMetadata {
-  diff_ratio: number;
-  threshold: number;
+  diff_ratio?: number;
+  threshold?: number;
 }
 
 export interface SecurityFindingsMetadata {

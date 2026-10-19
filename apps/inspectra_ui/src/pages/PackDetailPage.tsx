@@ -263,7 +263,8 @@ export interface StepFormValues {
   body_json_text?: string;
   expected_status?: number | string;
   expected_json_path?: string;
-  expected_value?: string;
+  // Kept as stored (number, boolean, ...): the backend compares it with `==`, so it must not be stringified.
+  expected_value?: unknown;
   timeout_ms?: number | string;
   optional?: boolean;
   notes?: string;
@@ -273,9 +274,27 @@ export interface StepFormValues {
   approve_baseline?: boolean;
 }
 
-function toHttpMethod(value: string | undefined): TestCaseStepCreate['method'] {
-  const upper = (value ?? '').toUpperCase();
-  return HTTP_METHODS.includes(upper) ? (upper as TestCaseStepCreate['method']) : undefined;
+/** Text shown in an input for a stored value that may not be a string. */
+function formText(value: unknown): string {
+  if (value == null) return '';
+  return typeof value === 'object' ? JSON.stringify(value) : String(value);
+}
+
+/** Editor form values for a stored step; values are kept as stored (see `StepFormValues.expected_value`). */
+export function stepToFormValues(step: TestCaseStep): StepFormValues {
+  return {
+    ...step,
+    headers_text: step.headers ? JSON.stringify(step.headers, null, 2) : '',
+    query_params_text: step.query_params ? JSON.stringify(step.query_params, null, 2) : '',
+    body_json_text: step.body_json ? JSON.stringify(step.body_json, null, 2) : '',
+    expected_status: step.expected_status ?? '',
+    expected_json_path: step.expected_json_path ?? '',
+    expected_value: step.expected_value ?? '',
+    budget_ms: step.budget_ms ?? '',
+    warn_ms: step.warn_ms ?? '',
+    metric_name: step.metric_name ?? '',
+    approve_baseline: step.approve_baseline ?? false,
+  };
 }
 
 export function normalizeStepPayload(form: StepFormValues) {
@@ -284,7 +303,8 @@ export function normalizeStepPayload(form: StepFormValues) {
     target: form.target || undefined,
     value: form.value || undefined,
     expected: form.expected || undefined,
-    method: toHttpMethod(form.method),
+    // Sent as entered; the backend validates the method.
+    method: (form.method || undefined) as TestCaseStepCreate['method'],
     url: form.url || undefined,
     headers: safeParseJson(form.headers_text || '', 'Headers JSON'),
     query_params: safeParseJson(form.query_params_text || '', 'Query Params JSON'),
@@ -414,19 +434,7 @@ function TestCaseRow({
   const startEditStep = (step: TestCaseStep) => {
     if (containsPreview) return;
     setEditingStepId(step.step_id);
-    setEditForm({
-      ...step,
-      headers_text: step.headers ? JSON.stringify(step.headers, null, 2) : '',
-      query_params_text: step.query_params ? JSON.stringify(step.query_params, null, 2) : '',
-      body_json_text: step.body_json ? JSON.stringify(step.body_json, null, 2) : '',
-      expected_status: step.expected_status ?? '',
-      expected_json_path: step.expected_json_path ?? '',
-      expected_value: step.expected_value == null ? '' : String(step.expected_value),
-      budget_ms: step.budget_ms ?? '',
-      warn_ms: step.warn_ms ?? '',
-      metric_name: step.metric_name ?? '',
-      approve_baseline: step.approve_baseline ?? false,
-    });
+    setEditForm(stepToFormValues(step));
   };
 
   const handleSaveNewStep = async () => {
@@ -845,7 +853,7 @@ function TestCaseRow({
                               </div>
                               <div>
                                 <label style={{ fontSize: 9, color: P.textMute, fontFamily: F.mono }}>EXPECTED VALUE</label>
-                                <input type="text" value={editForm.expected_value || ''} onChange={e => setEditForm(prev => ({ ...prev, expected_value: e.target.value }))} style={{ width: '100%', background: P.card, border: `1px solid ${P.border}`, borderRadius: 4, padding: 4, color: P.text, fontSize: 11 }} />
+                                <input type="text" value={formText(editForm.expected_value)} onChange={e => setEditForm(prev => ({ ...prev, expected_value: e.target.value }))} style={{ width: '100%', background: P.card, border: `1px solid ${P.border}`, borderRadius: 4, padding: 4, color: P.text, fontSize: 11 }} />
                               </div>
                             </>
                           )}
@@ -855,7 +863,7 @@ function TestCaseRow({
                               <label style={{ fontSize: 9, color: P.textMute, fontFamily: F.mono }}>
                                 {isResponseTimeAssertAction(editForm.action_type || '') ? 'MAX RESPONSE TIME (MS)' : 'EXPECTED VALUE'}
                               </label>
-                              <input type="text" value={editForm.expected_value || ''} onChange={e => setEditForm(prev => ({ ...prev, expected_value: e.target.value }))} style={{ width: '100%', background: P.card, border: `1px solid ${P.border}`, borderRadius: 4, padding: 4, color: P.text, fontSize: 11 }} />
+                              <input type="text" value={formText(editForm.expected_value)} onChange={e => setEditForm(prev => ({ ...prev, expected_value: e.target.value }))} style={{ width: '100%', background: P.card, border: `1px solid ${P.border}`, borderRadius: 4, padding: 4, color: P.text, fontSize: 11 }} />
                             </div>
                           )}
 
@@ -1326,7 +1334,7 @@ function TestCaseRow({
                         <input
                           type="text"
                           placeholder="e.g. ok"
-                          value={newForm.expected_value || ''}
+                          value={formText(newForm.expected_value)}
                           onChange={e => setNewForm(prev => ({ ...prev, expected_value: e.target.value }))}
                           style={{
                             width: '100%', background: P.card, border: `1px solid ${P.border}`,

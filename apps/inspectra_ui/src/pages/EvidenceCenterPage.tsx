@@ -19,6 +19,15 @@ import type {
   WebTimingMetadata,
 } from '../types/api';
 
+const percent = (value?: number) => (typeof value === 'number' ? `${(value * 100).toFixed(2)}%` : '—');
+
+/** Visual diff verdict, or null when the metadata does not carry both numbers. */
+function visualDiffPassed(meta: VisualDiffMetadata): boolean | null {
+  return typeof meta.diff_ratio === 'number' && typeof meta.threshold === 'number'
+    ? meta.diff_ratio <= meta.threshold
+    : null;
+}
+
 /** `metadata_json` is free-form JSON; this is the one place it is read as a per-type shape. */
 function metaOf<T>(file: EvidenceFile): T {
   return (file.metadata_json ?? {}) as T;
@@ -229,10 +238,10 @@ export default function EvidenceCenterPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                       <div style={{ fontSize: 10, color: P.textMute, fontFamily: F.mono }}>VISUAL DIFF PREVIEW</div>
                       <div style={{ padding: '8px 10px', borderRadius: 6, background: P.cardHi, border: `1px solid ${P.border}`, fontSize: 11, color: P.textDim }}>
-                        <div><strong>Diff Ratio:</strong> {(metaOf<VisualDiffMetadata>(selected).diff_ratio * 100).toFixed(2)}%</div>
-                        <div><strong>Threshold:</strong> {(metaOf<VisualDiffMetadata>(selected).threshold * 100).toFixed(2)}%</div>
-                        <div><strong>Verdict:</strong> <span style={{ color: metaOf<VisualDiffMetadata>(selected).diff_ratio <= metaOf<VisualDiffMetadata>(selected).threshold ? P.pass : P.fail }}>
-                          {metaOf<VisualDiffMetadata>(selected).diff_ratio <= metaOf<VisualDiffMetadata>(selected).threshold ? 'PASSED' : 'FAILED'}
+                        <div><strong>Diff Ratio:</strong> {percent(metaOf<VisualDiffMetadata>(selected).diff_ratio)}</div>
+                        <div><strong>Threshold:</strong> {percent(metaOf<VisualDiffMetadata>(selected).threshold)}</div>
+                        <div><strong>Verdict:</strong> <span style={{ color: visualDiffPassed(metaOf<VisualDiffMetadata>(selected)) === null ? P.textMute : visualDiffPassed(metaOf<VisualDiffMetadata>(selected)) ? P.pass : P.fail }}>
+                          {visualDiffPassed(metaOf<VisualDiffMetadata>(selected)) === null ? 'UNKNOWN' : visualDiffPassed(metaOf<VisualDiffMetadata>(selected)) ? 'PASSED' : 'FAILED'}
                         </span></div>
                       </div>
                     </div>
