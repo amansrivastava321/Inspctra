@@ -511,22 +511,24 @@ class TestCLIValidateRuntime:
                 rc = e.code if isinstance(e.code, int) else 0
         return rc, buf.getvalue()
 
-    def test_dry_run_does_not_launch_apps(self):
+    def test_dry_run_does_not_launch_apps(self, tmp_path):
         rc, out = self._run_cli([
             "validate-runtime",
             "--pack", "examples/interactive_runtime/phase2_validation_pack.yaml",
             "--dry-run",
+            "--output-dir", str(tmp_path),
         ])
         assert "[DRY-RUN COMPLETE]" in out
         assert "No apps were launched" in out
         assert rc == 0
 
-    def test_target_filter_works(self):
+    def test_target_filter_works(self, tmp_path):
         rc, out = self._run_cli([
             "validate-runtime",
             "--pack", "examples/interactive_runtime/phase2_validation_pack.yaml",
             "--target", "generic_web",
             "--dry-run",
+            "--output-dir", str(tmp_path),
         ])
         assert "generic_web" in out
         assert "flowbook_macos" not in out

@@ -378,9 +378,14 @@ def test_snapshot_is_one_read_transaction(env):
     env[1]._get_conn().set_trace_callback(trace.append)
     result(env)
     env[1]._get_conn().set_trace_callback(None)
-    assert trace[0] == "BEGIN"
-    assert trace[-1] == "ROLLBACK"
-    assert all(sql.startswith("SELECT") for sql in trace[1:-1])
+    # The app has background threads on this same connection, so statements outside
+    # the snapshot may be traced too. The snapshot itself must be exactly one
+    # BEGIN ... ROLLBACK window, and (the storage lock being held throughout) read-only.
+    assert trace.count("BEGIN") == 1
+    assert trace.count("ROLLBACK") == 1
+    window = trace[trace.index("BEGIN") + 1:trace.index("ROLLBACK")]
+    assert window
+    assert all(sql.startswith("SELECT") for sql in window)
 
 
 @pytest.mark.parametrize("status", ["cancelled", "failed", "completed"])
