@@ -56,7 +56,7 @@ export function StepTimeline({ steps, activeStepId, onSelectStep }: StepTimeline
                   gap: 4
                 }}>
                   {`Step ${step.index}: ${step.name}`}
-                  {(step as any).warning && <span title="Performance Warning" style={{ color: P.unclear, fontSize: 11 }}>⚠</span>}
+                  {step.warning && <span title="Performance Warning" style={{ color: P.unclear, fontSize: 11 }}>⚠</span>}
                 </span>
                 <span style={{ fontSize: 9, fontFamily: F.mono, color, flexShrink: 0, textTransform: 'uppercase' }}>{step.status}</span>
               </div>

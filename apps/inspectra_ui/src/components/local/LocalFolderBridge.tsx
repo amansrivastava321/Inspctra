@@ -307,13 +307,6 @@ export default function LocalFolderBridge({
     bridgeState === 'candidates' ||
     bridgeState === 'not_found';
 
-  // All roots shown in the checklist: recommended + (optional if expanded) + custom
-  const visibleRoots = [
-    ...recommendedRoots,
-    ...(showOptional ? optionalRoots : []),
-    ...customRoots,
-  ];
-
   return (
     <div>
       {/* Mode badge */}

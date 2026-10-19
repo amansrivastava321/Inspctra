@@ -19,7 +19,7 @@ vi.mock('../api/client', () => {
   };
 });
 
-import { get, ApiError } from '../api/client';
+import { get } from '../api/client';
 const mockGet = get as ReturnType<typeof vi.fn>;
 
 const renderSidebar = (props: { readinessScore?: number; readinessSubtitle?: string } = {}) =>
@@ -120,7 +120,7 @@ describe('Sidebar — no hardcoded identity', () => {
 
   it('shows "Backend offline" in workspace selector when offline', async () => {
     const { ApiError: Err } = await import('../api/client');
-    mockGet.mockRejectedValue(new (Err as any)(0, 'Network error'));
+    mockGet.mockRejectedValue(new Err(0, 'Network error'));
     renderSidebar();
     await waitFor(() => {
       // Workspace selector label shows "Backend offline"

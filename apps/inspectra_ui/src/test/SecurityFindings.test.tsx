@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { EvidenceCard } from '../components/evidence/EvidenceCard';
 import { SecurityFindingsCard } from '../pages/LiveRunDetailPage';
-import type { EvidenceFile } from '../types/api';
+import type { EvidenceFile, SecurityFindingsMetadata } from '../types/api';
 
 const MOCK_SEC_EV: EvidenceFile = {
   id: 'ev-sec-01',
@@ -40,7 +40,7 @@ describe('Security Evidence and Findings Rendering', () => {
   });
 
   it('renders SecurityFindingsCard with correct counts and detail list', () => {
-    const findings = (MOCK_SEC_EV.metadata_json as any).findings;
+    const findings = (MOCK_SEC_EV.metadata_json as SecurityFindingsMetadata).findings ?? [];
     render(<SecurityFindingsCard findings={findings} />);
 
     // Check title and passive-only sweep warning badge

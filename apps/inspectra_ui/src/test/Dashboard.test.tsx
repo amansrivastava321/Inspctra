@@ -231,7 +231,7 @@ describe('Actionable Dashboard', () => {
   });
 
   it('shows only the offline hero when the backend is unreachable', async () => {
-    mockGet.mockRejectedValue(new (ApiError as any)(0, 'Network error'));
+    mockGet.mockRejectedValue(new ApiError(0, 'Network error'));
     renderPage();
 
     expect((await screen.findAllByText('Backend offline')).length).toBeGreaterThan(0);
@@ -243,7 +243,7 @@ describe('Actionable Dashboard', () => {
   });
 
   it('recognizes a Vite proxy 500 as offline after a failed health probe', async () => {
-    mockGet.mockRejectedValue(new (ApiError as any)(500, '500 Internal Server Error'));
+    mockGet.mockRejectedValue(new ApiError(500, '500 Internal Server Error'));
     mockCheckHealth.mockResolvedValue('offline');
     renderPage();
 

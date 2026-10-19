@@ -86,7 +86,7 @@ describe('RuntimeDoctorPage', () => {
 
   it('shows offline state when backend unreachable', async () => {
     const { ApiError } = await import('../api/client');
-    mockGet.mockRejectedValue(new (ApiError as any)(0, 'Network error'));
+    mockGet.mockRejectedValue(new ApiError(0, 'Network error'));
     render(<MemoryRouter><RuntimeDoctorPage /></MemoryRouter>);
     await waitFor(() => {
       // Multiple "Backend offline" elements appear (Sidebar workspace label + main OfflineState)

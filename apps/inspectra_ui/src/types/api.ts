@@ -500,6 +500,7 @@ export interface ValidationRunStep {
   target?: string;
   value?: string;
   expected?: string;
+  notes?: string;
   method?: string;
   url?: string;
   headers?: Record<string, unknown>;
@@ -545,8 +546,75 @@ export interface StepResult {
   warn_ms?: number;
   metric_name?: string;
   warning?: boolean;
-  security_findings?: any[];
+  security_findings?: SecurityFinding[];
   provenance?: Provenance;
+}
+
+export interface SecurityFinding {
+  id: string;
+  title: string;
+  severity: string;
+  description: string;
+  recommendation?: string;
+  category?: string;
+  url?: string;
+  header?: string;
+  cookie?: string;
+  affected_url?: string;
+  affected_header?: string;
+  affected_cookie?: string;
+}
+
+/** Row of `GET /baselines` (visual regression baselines). */
+export interface VisualBaseline {
+  id: string;
+  app_id: string;
+  pack_id?: string | null;
+  test_case_id?: string | null;
+  step_id: string;
+  name: string;
+  relative_path: string;
+  baseline_path?: string | null;
+  width?: number | null;
+  height?: number | null;
+  sha256?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** `metadata_json` payloads by evidence type (the field itself is free-form JSON). */
+export interface PerformanceSummaryMetadata {
+  metric_name?: string;
+  measured_ms?: number;
+  budget_ms?: number;
+  warn_ms?: number;
+  verdict?: string;
+}
+
+export interface WebTimingMetadata {
+  metrics?: Record<string, string | number>;
+}
+
+export interface AccessibilitySummaryMetadata {
+  total_violations?: number;
+  budget_violations?: number;
+  warn_violations?: number;
+  verdict?: string;
+}
+
+export interface AccessibilityViolationsMetadata {
+  a11y_result?: { total_violations?: number };
+  budget_violations?: number;
+  warn_violations?: number;
+}
+
+export interface VisualDiffMetadata {
+  diff_ratio: number;
+  threshold: number;
+}
+
+export interface SecurityFindingsMetadata {
+  findings?: SecurityFinding[];
 }
 
 // ─── Events (SSE) ─────────────────────────────────────────────────────────────
@@ -1107,12 +1175,12 @@ export interface AIProposedTestStep {
   rationale?: string;
   method?: string;
   url?: string;
-  headers?: Record<string, any>;
-  query_params?: Record<string, any>;
-  body_json?: any;
+  headers?: Record<string, unknown>;
+  query_params?: Record<string, unknown>;
+  body_json?: unknown;
   expected_status?: number;
   expected_json_path?: string;
-  expected_value?: any;
+  expected_value?: unknown;
   budget_ms?: number;
   warn_ms?: number;
   metric_name?: string;
@@ -1150,13 +1218,13 @@ export interface AITestPlanPreview {
   app_id?: string | null;
   generated_from?: string;
   generation_source: string;
-  generation_metadata?: Record<string, any>;
+  generation_metadata?: Record<string, unknown>;
   coverage_summary?: Record<string, number>;
   risk_summary?: Record<string, number>;
   test_cases: AIProposedTestCase[];
   created_at?: string;
   updated_at?: string;
-  safety_redaction_metadata?: Record<string, any>;
+  safety_redaction_metadata?: Record<string, unknown>;
 }
 
 export interface AITestPlanAcceptRequest {

@@ -1,4 +1,4 @@
-import { AlertTriangle, AlertCircle, Info, CheckCircle } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Info } from 'lucide-react';
 import { P } from '../../design/tokens';
 import { StatusBadge } from '../status/StatusBadge';
 import type { ReportFinding } from '../../types/api';

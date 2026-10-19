@@ -6,7 +6,7 @@ import { AppShell, PageHeader, Card, Btn, StatCard } from '../components/layout/
 import { LoadingSkeleton, ErrorState, OfflineState, PartialConfigBanner } from '../components/common/EmptyState';
 import { useApi } from '../hooks/useApi';
 import { get, del, post } from '../api/client';
-import type { AppTarget, AppMapDraft, ValidationPack, Provenance } from '../types/api';
+import type { AppMapDraft, ValidationPack, Provenance } from '../types/api';
 import { useWorkspaceNavigate } from '../state/WorkspaceModeContext';
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
 import { PreviewBadge } from '../components/PreviewBadge';

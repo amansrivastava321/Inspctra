@@ -50,7 +50,7 @@ import {
   uploadManualEvidence,
   finalizeManualRun,
 } from '../api/validationPacks';
-import type { LiveRunRecord, StepResult, EvidenceFile, AIEvaluationNote, DurableRunEvent } from '../types/api';
+import type { LiveRunRecord, StepResult, EvidenceFile, AIEvaluationNote, DurableRunEvent, SecurityFinding, VisualBaseline } from '../types/api';
 
 export function toDisplaySteps(run: LiveRunRecord | undefined): StepResult[] {
   if (!run) return [];
@@ -63,7 +63,7 @@ export function toDisplaySteps(run: LiveRunRecord | undefined): StepResult[] {
       id: result.id || result.step_id,
       step_id: result.step_id,
       name: result.name || `${result.action_type?.replace(/_/g, ' ') || 'step'} ${result.step || idx + 1}`,
-      warning: (result as any).warning,
+      warning: result.warning,
     }));
   }
   return baseSteps.map((step, idx) => {
@@ -96,7 +96,7 @@ export function toDisplaySteps(run: LiveRunRecord | undefined): StepResult[] {
       budget_ms: step.budget_ms,
       warn_ms: step.warn_ms,
       metric_name: step.metric_name,
-      warning: (result as any)?.warning,
+      warning: result?.warning,
       provenance: result?.provenance,
     };
   });
@@ -198,21 +198,6 @@ function AccessibilityViolationsCard({ a11yResult }: { a11yResult: A11yResult })
       </div>
     </Card>
   );
-}
-
-interface SecurityFinding {
-  id: string;
-  title: string;
-  severity: string;
-  description: string;
-  recommendation?: string;
-  category?: string;
-  url?: string;
-  header?: string;
-  cookie?: string;
-  affected_url?: string;
-  affected_header?: string;
-  affected_cookie?: string;
 }
 
 export function SecurityFindingsCard({ findings }: { findings: SecurityFinding[] }) {
@@ -411,7 +396,7 @@ export default function LiveRunDetailWorkspace() {
   const durableEvents = Array.isArray(durableEventData) ? durableEventData : [];
 
   // Visual baseline states
-  const [baselines, setBaselines] = useState<any[]>([]);
+  const [baselines, setBaselines] = useState<VisualBaseline[]>([]);
   const [approvingStepId, setApprovingStepId] = useState<string | null>(null);
   const [approvedSteps, setApprovedSteps] = useState<Record<string, boolean>>({});
 
@@ -420,7 +405,7 @@ export default function LiveRunDetailWorkspace() {
   const fetchBaselines = useCallback(async () => {
     if (isDemo || !appId) return;
     try {
-      const data = await get<any[]>(`/baselines?app_id=${appId}`);
+      const data = await get<VisualBaseline[]>(`/baselines?app_id=${appId}`);
       setBaselines(data);
     } catch (err) {
       console.error('Failed to fetch baselines', err);
@@ -453,7 +438,7 @@ export default function LiveRunDetailWorkspace() {
     }
   };
 
-  const baseline = (selectedStep && baselines) ? baselines.find((b: any) => b.step_id === selectedStep.id) : null;
+  const baseline = (selectedStep && baselines) ? baselines.find((b) => b.step_id === selectedStep.id) : null;
   const baselineUrl = baseline ? baselineDownloadUrl(baseline.id) : undefined;
 
   const isManual = run?.execution_mode === 'manual';
@@ -470,8 +455,8 @@ export default function LiveRunDetailWorkspace() {
 
   // Unified steps for manual run
   const displayedSteps = run && isManual
-    ? (run.steps || []).map((step: any, idx: number) => {
-        const result = (run.step_results || []).find((r: any) => r.step_id === step.step_id || r.step === idx + 1);
+    ? (run.steps || []).map((step, idx) => {
+        const result = (run.step_results || []).find((r) => r.step_id === step.step_id || r.step === idx + 1);
         return {
           id: step.step_id,
           step_id: step.step_id,
@@ -522,7 +507,7 @@ export default function LiveRunDetailWorkspace() {
   // Sync form inputs when selectedStep changes
   useEffect(() => {
     if (selectedStep && run && isManual) {
-      const res = (run.step_results || []).find((r: any) => r.step_id === selectedStep.step_id || r.step === selectedStep.index);
+      const res = (run.step_results || []).find((r) => r.step_id === selectedStep.step_id || r.step === selectedStep.index);
       setActualResult(res?.actual_result || '');
       setNotes(res?.notes || '');
       setFailureReason(res?.failure_reason || '');
@@ -608,8 +593,8 @@ export default function LiveRunDetailWorkspace() {
   const a11yResult = a11yEv?.metadata_json?.a11y_result as A11yResult | undefined;
 
   const secEv = stepEvidence.find(ev => getEvidenceType(ev) === 'security_findings');
-  const secResult = secEv?.metadata_json as { findings?: any[] } | undefined;
-  const securityFindings = secResult?.findings || (selectedStep as any)?.security_findings || [];
+  const secResult = secEv?.metadata_json as { findings?: SecurityFinding[] } | undefined;
+  const securityFindings = secResult?.findings || selectedStep?.security_findings || [];
 
   const activeScreenshotEv = selectedStep
     ? stepEvidence.find(ev => getEvidenceType(ev) === 'screenshot')
@@ -820,7 +805,7 @@ export default function LiveRunDetailWorkspace() {
                           background: `${P.accent}18`, border: `1px solid ${P.accent}33`, borderRadius: 4,
                           padding: '1px 4px', color: P.accent, textTransform: 'uppercase'
                         }}>
-                          {(run.steps?.[selectedStep.index - 1] as any)?.action_type || 'interaction'}
+                          {run.steps?.[selectedStep.index - 1]?.action_type || 'interaction'}
                         </span>
                         <span style={{
                           fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', fontFamily: F.mono,
@@ -847,33 +832,33 @@ export default function LiveRunDetailWorkspace() {
                     background: P.cardHi, border: `1px solid ${P.border}`, borderRadius: 8,
                     padding: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12,
                   }}>
-                    {((run.steps?.[selectedStep.index - 1] as any)?.target) && (
+                    {(run.steps?.[selectedStep.index - 1]?.target) && (
                       <div>
                         <span style={{ color: P.textMute, fontFamily: F.mono, fontSize: 10 }}>
-                          {(run.steps?.[selectedStep.index - 1] as any)?.action_type === 'assert_visual_match' ? 'CSS Selector:' : 'Target / Selector:'}
+                          {run.steps?.[selectedStep.index - 1]?.action_type === 'assert_visual_match' ? 'CSS Selector:' : 'Target / Selector:'}
                         </span>{' '}
-                        <code style={{ fontFamily: F.mono, color: P.text }}>{((run.steps?.[selectedStep.index - 1] as any)?.target)}</code>
+                        <code style={{ fontFamily: F.mono, color: P.text }}>{(run.steps?.[selectedStep.index - 1]?.target)}</code>
                       </div>
                     )}
-                    {((run.steps?.[selectedStep.index - 1] as any)?.value) && (
+                    {(run.steps?.[selectedStep.index - 1]?.value) && (
                       <div>
                         <span style={{ color: P.textMute, fontFamily: F.mono, fontSize: 10 }}>
-                          {(run.steps?.[selectedStep.index - 1] as any)?.action_type === 'assert_visual_match' ? 'Baseline Key:' : 'Value:'}
+                          {run.steps?.[selectedStep.index - 1]?.action_type === 'assert_visual_match' ? 'Baseline Key:' : 'Value:'}
                         </span>{' '}
-                        <code style={{ fontFamily: F.mono, color: P.text }}>{((run.steps?.[selectedStep.index - 1] as any)?.value)}</code>
+                        <code style={{ fontFamily: F.mono, color: P.text }}>{(run.steps?.[selectedStep.index - 1]?.value)}</code>
                       </div>
                     )}
-                    {((run.steps?.[selectedStep.index - 1] as any)?.expected) && (
+                    {(run.steps?.[selectedStep.index - 1]?.expected) && (
                       <div>
                         <span style={{ color: P.textMute, fontFamily: F.mono, fontSize: 10 }}>
-                          {(run.steps?.[selectedStep.index - 1] as any)?.action_type === 'assert_visual_match' ? 'Max Difference Threshold:' : 'Expected:'}
+                          {run.steps?.[selectedStep.index - 1]?.action_type === 'assert_visual_match' ? 'Max Difference Threshold:' : 'Expected:'}
                         </span>{' '}
-                        <code style={{ fontFamily: F.mono, color: P.text }}>{((run.steps?.[selectedStep.index - 1] as any)?.expected)}</code>
+                        <code style={{ fontFamily: F.mono, color: P.text }}>{(run.steps?.[selectedStep.index - 1]?.expected)}</code>
                       </div>
                     )}
-                    {((run.steps?.[selectedStep.index - 1] as any)?.notes) && (
+                    {(run.steps?.[selectedStep.index - 1]?.notes) && (
                       <div style={{ color: P.textMute, fontStyle: 'italic', marginTop: 4 }}>
-                        {((run.steps?.[selectedStep.index - 1] as any)?.notes)}
+                        {(run.steps?.[selectedStep.index - 1]?.notes)}
                       </div>
                     )}
                   </div>
@@ -1097,7 +1082,7 @@ export default function LiveRunDetailWorkspace() {
                   const currentScreenshotEv = stepEvidence.find(ev => getEvidenceType(ev) === 'screenshot');
                   const visualDiffEv = stepEvidence.find(ev => getEvidenceType(ev) === 'visual_diff');
                   const stepIdx = selectedStep.index;
-                  const baselineName = (run?.steps && stepIdx !== undefined ? (run.steps[stepIdx - 1] as any)?.value : undefined) || selectedStep.name;
+                  const baselineName = (run?.steps && stepIdx !== undefined ? run.steps[stepIdx - 1]?.value : undefined) || selectedStep.name;
                   return (
                     <VisualRegressionCard
                       baselineUrl={baselineUrl}
@@ -1135,7 +1120,7 @@ export default function LiveRunDetailWorkspace() {
                     <AlertTriangle size={14} /> CAPABILITY GAP DETECTED
                   </div>
                   <div style={{ fontSize: 11, color: P.textDim }}>
-                    {(selectedStep as any).notes || 'This step requires capabilities not currently available.'}
+                    {selectedStep.notes || 'This step requires capabilities not currently available.'}
                   </div>
                 </div>
               )}
@@ -1149,12 +1134,12 @@ export default function LiveRunDetailWorkspace() {
                     <AlertTriangle size={14} /> STEP EXECUTION FAILED
                   </div>
                   <div style={{ fontSize: 11, color: P.textDim }}>
-                    {(selectedStep as any).notes || selectedStep.error || 'The assertion or interaction failed during execution.'}
+                    {selectedStep.notes || selectedStep.error || 'The assertion or interaction failed during execution.'}
                   </div>
                 </div>
               )}
 
-              {selectedStep && (selectedStep as any).warning && (
+              {selectedStep && selectedStep.warning && (
                 <div style={{
                   padding: '12px 16px', borderRadius: 8, background: `${P.unclear}18`,
                   border: `1px solid ${P.unclear}33`, display: 'flex', flexDirection: 'column', gap: 4
@@ -1190,11 +1175,11 @@ export default function LiveRunDetailWorkspace() {
                         {selectedStep.assertion_result != null && <div style={{ fontSize: 11, color: selectedStep.assertion_result ? P.pass : P.fail }}><span style={{ color: P.textMute, fontFamily: F.mono }}>assertion_result:</span> {selectedStep.assertion_result ? 'passed' : 'failed'}</div>}
                       </div>
                     )}
-                    {((selectedStep as any).budget_ms != null || (selectedStep as any).warn_ms != null || (selectedStep as any).metric_name) && (
+                    {(selectedStep.budget_ms != null || selectedStep.warn_ms != null || selectedStep.metric_name) && (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, borderTop: `1px solid ${P.border}`, paddingTop: 8, marginTop: 4 }}>
-                        {(selectedStep as any).budget_ms != null && <div style={{ fontSize: 11, color: P.textDim }}><span style={{ color: P.textMute, fontFamily: F.mono }}>budget_ms:</span> {(selectedStep as any).budget_ms}</div>}
-                        {(selectedStep as any).warn_ms != null && <div style={{ fontSize: 11, color: P.textDim }}><span style={{ color: P.textMute, fontFamily: F.mono }}>warn_ms:</span> {(selectedStep as any).warn_ms}</div>}
-                        {(selectedStep as any).metric_name && <div style={{ gridColumn: '1 / -1', fontSize: 11, color: P.textDim }}><span style={{ color: P.textMute, fontFamily: F.mono }}>metric_name:</span> {(selectedStep as any).metric_name}</div>}
+                        {selectedStep.budget_ms != null && <div style={{ fontSize: 11, color: P.textDim }}><span style={{ color: P.textMute, fontFamily: F.mono }}>budget_ms:</span> {selectedStep.budget_ms}</div>}
+                        {selectedStep.warn_ms != null && <div style={{ fontSize: 11, color: P.textDim }}><span style={{ color: P.textMute, fontFamily: F.mono }}>warn_ms:</span> {selectedStep.warn_ms}</div>}
+                        {selectedStep.metric_name && <div style={{ gridColumn: '1 / -1', fontSize: 11, color: P.textDim }}><span style={{ color: P.textMute, fontFamily: F.mono }}>metric_name:</span> {selectedStep.metric_name}</div>}
                       </div>
                     )}
                     {selectedStep.failure_reason && (

@@ -25,7 +25,7 @@ import { LoadingSkeleton, ErrorState, OfflineState, PartialConfigBanner } from '
 import { StartRunModal } from '../components/modals/StartRunModal';
 import { useApi } from '../hooks/useApi';
 import { useWorkspaceNavigate } from '../state/WorkspaceModeContext';
-import { get, post, del, patch } from '../api/client';
+import { get, del, patch } from '../api/client';
 import {
   getTestPlan,
   generateTestPlan,
@@ -50,6 +50,7 @@ import type {
   AIProposedTestCase,
   AIProposedTestStep,
   Provenance,
+  ValidationRunStep,
 } from '../types/api';
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
 import { PreviewBadge } from '../components/PreviewBadge';
@@ -65,6 +66,12 @@ import {
 } from '../config/capabilities';
 
 // Backend ValidationPack shape (simpler than frontend type)
+type BackendPackStep = Partial<ValidationRunStep> & {
+  // legacy field names still present on older packs
+  input_value?: string;
+  expected_result?: string;
+};
+
 interface BackendPack {
   id: string;
   name: string;
@@ -73,7 +80,7 @@ interface BackendPack {
   app_id?: string;   // linked app target (null = generic pack)
   target_app_ids?: string[];
   target_names?: string[];
-  steps: Record<string, unknown>[];
+  steps: BackendPackStep[];
   created_at: string;
   updated_at: string;
   provenance?: Provenance;
@@ -210,8 +217,6 @@ const ACTION_TYPES = [
 ];
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
-const isApiAction = (action: string) =>
-  ['api_request', 'assert_status', 'assert_json_path', 'assert_header_contains', 'assert_body_contains', 'assert_response_time_under', 'assert_api_response_time_under'].includes(action);
 const isApiRequestAction = (action: string) => action === 'api_request';
 const isJsonPathAction = (action: string) => action === 'assert_json_path';
 const isHeaderAssertAction = (action: string) => action === 'assert_header_contains';
@@ -245,13 +250,41 @@ function safeParseJson(raw: string, label: string) {
   }
 }
 
-export function normalizeStepPayload(form: Record<string, any>) {
+/** Values of the step editor form; inputs hold text, so numeric fields may be strings. */
+export interface StepFormValues {
+  action_type?: string;
+  target?: string;
+  value?: string;
+  expected?: string;
+  method?: string;
+  url?: string;
+  headers_text?: string;
+  query_params_text?: string;
+  body_json_text?: string;
+  expected_status?: number | string;
+  expected_json_path?: string;
+  expected_value?: string;
+  timeout_ms?: number | string;
+  optional?: boolean;
+  notes?: string;
+  budget_ms?: number | string | null;
+  warn_ms?: number | string | null;
+  metric_name?: string;
+  approve_baseline?: boolean;
+}
+
+function toHttpMethod(value: string | undefined): TestCaseStepCreate['method'] {
+  const upper = (value ?? '').toUpperCase();
+  return HTTP_METHODS.includes(upper) ? (upper as TestCaseStepCreate['method']) : undefined;
+}
+
+export function normalizeStepPayload(form: StepFormValues) {
   return {
     action_type: form.action_type,
     target: form.target || undefined,
     value: form.value || undefined,
     expected: form.expected || undefined,
-    method: form.method || undefined,
+    method: toHttpMethod(form.method),
     url: form.url || undefined,
     headers: safeParseJson(form.headers_text || '', 'Headers JSON'),
     query_params: safeParseJson(form.query_params_text || '', 'Query Params JSON'),
@@ -269,8 +302,9 @@ export function normalizeStepPayload(form: Record<string, any>) {
   };
 }
 
-export function getStepValidationErrors(form: Record<string, any>): string[] {
+export function getStepValidationErrors(form: StepFormValues): string[] {
   const errs: string[] = [];
+  const action = form.action_type ?? '';
   if (form.target && String(form.target).length > 500) errs.push('Selector/Target length cannot exceed 500 characters.');
   if (form.value && String(form.value).length > 1000) errs.push('Value length cannot exceed 1000 characters.');
   if (form.url && String(form.url).length > 2000) errs.push('URL length cannot exceed 2000 characters.');
@@ -278,23 +312,23 @@ export function getStepValidationErrors(form: Record<string, any>): string[] {
   if (Number(form.timeout_ms) > 300000) errs.push('Timeout cannot exceed 300000 ms (5 minutes).');
   if (form.budget_ms !== undefined && form.budget_ms !== '' && form.budget_ms !== null) {
     const bNum = Number(form.budget_ms);
-    if (isA11yAction(form.action_type)) {
+    if (isA11yAction(action)) {
       if (bNum < 0) errs.push('Budget (violations) cannot be negative.');
     } else {
       if (bNum <= 0) errs.push('Budget (ms) must be a positive number.');
     }
   }
-  if (isApiRequestAction(form.action_type)) {
+  if (isApiRequestAction(action)) {
     if (!HTTP_METHODS.includes(String(form.method || '').toUpperCase())) errs.push('HTTP method must be one of GET, POST, PUT, PATCH, DELETE.');
     if (!String(form.url || '').trim()) errs.push('API URL required.');
   }
-  if (isStatusAssertAction(form.action_type) && !Number.isFinite(Number(form.expected_status))) {
+  if (isStatusAssertAction(action) && !Number.isFinite(Number(form.expected_status))) {
     errs.push('Expected status must be a valid number.');
   }
-  if (isJsonPathAction(form.action_type) && !String(form.expected_json_path || '').trim()) {
+  if (isJsonPathAction(action) && !String(form.expected_json_path || '').trim()) {
     errs.push('JSON path is required for JSON path assertions.');
   }
-  if (isHeaderAssertAction(form.action_type) && !String(form.target || '').trim()) {
+  if (isHeaderAssertAction(action) && !String(form.target || '').trim()) {
     errs.push('Header name is required for header assertions.');
   }
   try { safeParseJson(form.headers_text || '', 'Headers JSON'); } catch (err) { errs.push(String((err as Error).message)); }
@@ -319,10 +353,10 @@ function TestCaseRow({
   const dimmed = !tc.enabled;
   const containsPreview = testCaseContainsPreview(tc);
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Record<string, any>>({});
+  const [editForm, setEditForm] = useState<StepFormValues>({});
   const [isAdding, setIsAdding] = useState(false);
   const [rationaleExpanded, setRationaleExpanded] = useState(false);
-  const [newForm, setNewForm] = useState<Record<string, any>>({
+  const [newForm, setNewForm] = useState<StepFormValues>({
     action_type: 'navigate',
     target: '',
     value: '',
@@ -387,7 +421,7 @@ function TestCaseRow({
       body_json_text: step.body_json ? JSON.stringify(step.body_json, null, 2) : '',
       expected_status: step.expected_status ?? '',
       expected_json_path: step.expected_json_path ?? '',
-      expected_value: step.expected_value ?? '',
+      expected_value: step.expected_value == null ? '' : String(step.expected_value),
       budget_ms: step.budget_ms ?? '',
       warn_ms: step.warn_ms ?? '',
       metric_name: step.metric_name ?? '',
@@ -1956,7 +1990,7 @@ export default function PackDetailPage() {
             />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {pack.steps.map((step: any, i) => (
+              {pack.steps.map((step, i) => (
                 <div key={step.step_id || i} style={{
                   padding: '8px 12px', borderRadius: 7, background: P.cardHi,
                   border: `1px solid ${P.border}`,

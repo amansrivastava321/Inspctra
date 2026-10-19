@@ -8,7 +8,6 @@ export function VerdictPanel({ run, selectedStep }: { run: LiveRunRecord; select
   const fail = run.step_results.filter(s => s.status === 'failed').length;
   const blocked = run.step_results.filter(s => s.status === 'blocked').length;
   const skipped = run.step_results.filter(s => s.status === 'skipped').length;
-  const unclear = run.step_results.filter(s => s.status === 'unclear').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

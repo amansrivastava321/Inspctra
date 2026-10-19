@@ -17,17 +17,12 @@ const EDGES: [string, string][] = [
   ['backend','logs'],['app','ai'],['ai','evidence'],['evidence','verdict'],
 ];
 
-type NodeId = typeof NODES[number]['id'];
-
 interface RuntimeFlowMapProps {
   activeNode?: string;
   compact?: boolean;
 }
 
 export function RuntimeFlowMap({ activeNode, compact }: RuntimeFlowMapProps) {
-  const W = compact ? 480 : 640;
-  const scale = compact ? 0.75 : 1;
-
   return (
     <div style={{ overflow: 'hidden', borderRadius: 8 }}>
       <svg
