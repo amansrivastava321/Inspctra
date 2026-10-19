@@ -359,9 +359,7 @@ class EnvironmentOrchestrator:
         if environment == Environment.CI:
             required.extend(["git", "docker", "python"])
         
-        if platform == Platform.FLUTTER:
-            required.append("flutter")
-        
+        # Flutter apps are audited as Platform.ANDROID/IOS, which already require "flutter".
         if platform == Platform.ANDROID:
             required.extend(["flutter", "android_sdk", "adb", "java"])
         
