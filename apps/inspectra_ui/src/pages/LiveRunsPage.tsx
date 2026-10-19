@@ -33,7 +33,7 @@ export default function LiveRunsPage() {
         subtitle={`${visibleRuns.length} ${manualOnly ? 'manual ' : ''}runs`}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Btn variant="ghost" size="sm" onClick={refetch}><RefreshCw size={12} /></Btn>
+            <Btn variant="ghost" size="sm" onClick={refetch} aria-label="Refresh runs" title="Refresh runs"><RefreshCw size={12} aria-hidden="true" /></Btn>
             <Btn variant="primary" demoWrite onClick={() => nav('/packs')}>
               <Play size={12} />Start new run
             </Btn>

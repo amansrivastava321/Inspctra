@@ -159,7 +159,7 @@ function AccessibilityViolationsCard({ a11yResult }: { a11yResult: A11yResult })
         {violations.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: P.textDim }}>VIOLATION DETAILS</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
+            <div tabIndex={0} role="region" aria-label="Violation details" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
               {violations.map((v, i) => {
                 const badgeColor = v.impact === 'critical' ? P.fail : v.impact === 'serious' ? P.unclear : P.textMute;
                 return (
@@ -250,7 +250,7 @@ export function SecurityFindingsCard({ findings }: { findings: SecurityFinding[]
         {findings.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: P.textDim }}>FINDINGS DETAILS</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
+            <div tabIndex={0} role="region" aria-label="Finding details" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
               {findings.map((f, i) => {
                 const badgeColor = ['critical', 'high'].includes(f.severity) ? P.fail : f.severity === 'medium' ? P.unclear : P.textMute;
                 return (
@@ -703,7 +703,7 @@ export default function LiveRunDetailWorkspace() {
       actions={
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <Btn size="sm" variant="ghost" onClick={() => nav('/runs')}><ArrowLeft size={12} />Runs</Btn>
-          <Btn size="sm" variant="ghost" onClick={refetch}><RefreshCw size={12} /></Btn>
+          <Btn size="sm" variant="ghost" onClick={refetch} aria-label="Refresh run" title="Refresh run"><RefreshCw size={12} aria-hidden="true" /></Btn>
           {durationMs != null && (
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, padding: '4px 8px', borderRadius: 7, border: `1px solid ${P.border}`, background: P.surface }}>
               <span style={{ color: P.textMute, fontFamily: F.mono, fontSize: 9 }}>RUN DURATION</span>
@@ -757,6 +757,7 @@ export default function LiveRunDetailWorkspace() {
         </div>
       }
     >
+      <h1 className="sr-only">{run.pack_name ?? run.id.slice(0, 12)} run</h1>
       {reportError && (
         <div style={{ padding: '0 20px 8px' }}>
           <div style={{ padding: '8px 12px', borderRadius: 7, background: `${P.fail}22`,
@@ -1237,7 +1238,7 @@ export default function LiveRunDetailWorkspace() {
 
           {/* Evidence for selected step (non-manual mode only, manual evidence is shown inline) */}
           {!isManual && selectedStep && stepEvidence.length > 0 && (
-            <div style={{ padding: '0 16px 12px', borderTop: `1px solid ${P.border}`,
+            <div tabIndex={0} role="region" aria-label="Evidence for selected step" style={{ padding: '0 16px 12px', borderTop: `1px solid ${P.border}`,
               maxHeight: 200, overflowY: 'auto' }}>
               <div style={{ fontSize: 10, color: P.textMute, fontFamily: "'JetBrains Mono',monospace",
                 textTransform: 'uppercase', letterSpacing: '0.06em', padding: '8px 0 6px' }}>

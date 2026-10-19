@@ -4,15 +4,15 @@ import { defineConfig, devices } from '@playwright/test';
  * Playwright E2E config for Inspectra UI.
  *
  * Prerequisites:
- *   - Backend: http://localhost:8765
- *   - Frontend dev server: http://localhost:5173
+ *   - Backend: http://127.0.0.1:8765
+ *   - Frontend dev server: http://127.0.0.1:5173
  *
  * Run:
  *   npm run test:e2e          # headless
  *   npm run test:e2e:ui       # Playwright UI mode
  */
 
-const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
+const BASE_URL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5173';
 
 export default defineConfig({
   testDir: './e2e',

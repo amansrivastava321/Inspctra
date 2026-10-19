@@ -43,7 +43,7 @@ export function Topbar({
 
   return (
     <>
-      <div style={{
+      <header style={{
         minHeight: 44, flexShrink: 0,
         borderBottom: `1px solid ${P.border}`,
         // Grow (not overflow) when many actions wrap, otherwise wrapped buttons are covered by page content.
@@ -123,7 +123,7 @@ export function Topbar({
         <BackendStatusIndicator />
 
         {actions && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{actions}</div>}
-      </div>
+      </header>
 
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
     </>

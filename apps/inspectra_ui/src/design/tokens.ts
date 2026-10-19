@@ -16,9 +16,10 @@ export const P = {
   text:        '#ececf1',
   textDim:     '#a0a3ad',
   textMute:    '#878b96',
-  textFaint:   '#494c55',
+  textFaint:   '#80848f',
   // Accent (signature indigo-blue)
   accent:      '#5b8cff',
+  accentSolid: '#3b6bea', // fill behind white text (4.7:1); P.accent is for text/icons on dark
   accentSoft:  'rgba(91,140,255,0.14)',
   accentGlow:  'rgba(91,140,255,0.32)',
   // Status
@@ -30,7 +31,7 @@ export const P = {
   unclearSoft: 'rgba(251,191,36,0.12)',
   blocked:     '#94a3b8',
   blockedSoft: 'rgba(148,163,184,0.12)',
-  skipped:     '#6b6e78',
+  skipped:     '#868a95',
   skippedSoft: 'rgba(107,110,120,0.12)',
   // Shadow / glow
   shadow:      '0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 32px -16px rgba(0,0,0,0.7)',

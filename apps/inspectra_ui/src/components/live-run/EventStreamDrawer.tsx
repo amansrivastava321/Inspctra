@@ -125,7 +125,7 @@ export function EventStreamDrawer({
         <span style={{ marginLeft: 'auto', color: P.textFaint }}>{open ? <ChevronDown size={13} /> : <ChevronUp size={13} />}</span>
       </button>
       {open && (
-        <div ref={listRef} style={{ maxHeight: 220, overflowY: 'auto', padding: '7px 0' }}>
+        <div ref={listRef} tabIndex={0} role="region" aria-label="Run event history" style={{ maxHeight: 220, overflowY: 'auto', padding: '7px 0' }}>
           {merged.length === 0 ? (
             <div style={{ padding: '16px 20px', fontSize: 12, color: P.textMute }}>
               {active || connected

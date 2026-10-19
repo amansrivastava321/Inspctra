@@ -1,6 +1,6 @@
 # QA-AI
 
-![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/amansrivastava321/Inspctra/actions/workflows/ci.yml/badge.svg)
 
 QA-AI is a contract-driven autonomous software audit and continuous improvement platform.
 

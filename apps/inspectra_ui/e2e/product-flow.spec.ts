@@ -2,8 +2,8 @@
  * product-flow.spec.ts — Playwright E2E tests for Inspectra product flow.
  *
  * Prerequisites:
- *   - Backend running on http://localhost:8765
- *   - Frontend dev server on http://localhost:5173 (or VITE_PORT env)
+ *   - Backend running on http://127.0.0.1:8765
+ *   - Frontend dev server on http://127.0.0.1:5173 (or VITE_PORT env)
  *   - No VITE_USE_MOCKS=true
  *
  * Run:
@@ -17,8 +17,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { homedir } from 'os';
 
-const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
-const API  = process.env.E2E_API_URL  ?? 'http://localhost:8765';
+const BASE = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5173';
+const API  = process.env.E2E_API_URL  ?? 'http://127.0.0.1:8765';
 
 // Unique suffix per test run — prevents leftover E2E records from prior runs colliding.
 const RUN_TS = Date.now();
@@ -701,7 +701,7 @@ test('16 - web pack run shows security sweep findings and report summary', async
 
 test('14 - offline state shown when backend unreachable', async ({ page }) => {
   // Use `${BASE}/api/**` not `**/api/**`:
-  // The broad glob also matches http://localhost:5173/src/api/client.ts (Vite source
+  // The broad glob also matches http://127.0.0.1:5173/src/api/client.ts (Vite source
   // module), aborting the JS bundle and leaving a blank page.
   // Anchored pattern only matches actual API calls at the proxy root.
   await page.route(`${BASE}/api/**`, route => route.abort());
