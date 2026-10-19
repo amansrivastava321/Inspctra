@@ -13,6 +13,17 @@ if TYPE_CHECKING:
 class AuditPhaseMixin:
     """Mixin providing core audit and evidence phase methods for WorkflowEngine."""
 
+    def _audit_inputs(self):
+        """Files of the target for the static audits; loaded once per run."""
+        from qa_ai.audit.source_loader import load_audit_inputs
+
+        app_path = str(self.context.app_path)
+        cached = getattr(self, "_audit_inputs_cache", None)
+        if cached is None or cached[0] != app_path:
+            cached = (app_path, load_audit_inputs(app_path))
+            self._audit_inputs_cache = cached
+        return cached[1]
+
     def _run_intake(self, app_path: Path, phase_list: List) -> None:
         """Intake phase: validate app path, detect initial stack."""
         from qa_ai.runtime.execution_context import AuditPhase
@@ -147,9 +158,8 @@ class AuditPhaseMixin:
         self.context.transition_to(AuditPhase.AUDIT)
 
         app_map = self.store.load_artifact("app_map")
-        # file_contents would come from the artifact store or discovery phase
         agent = SecurityAuditAgent(artifact_store=self.store)
-        result = agent.run(app_map=app_map, file_contents=None)
+        result = agent.run(app_map=app_map, file_contents=self._audit_inputs().file_contents)
         return result.model_dump()
 
     def _run_api_audit(self) -> Dict[str, Any]:
@@ -181,8 +191,13 @@ class AuditPhaseMixin:
         if not app_map:
             return {"status": "skipped", "reason": "app_map not found. Run Discovery first."}
 
+        inputs = self._audit_inputs()
         agent = DatabaseAuditAgent(artifact_store=self.store)
-        result = agent.run(app_map=app_map)
+        result = agent.run(
+            app_map=app_map,
+            detected_files=inputs.file_list,
+            file_contents=inputs.file_contents,
+        )
         return result.model_dump()
 
     def _run_sync_audit(self) -> Dict[str, Any]:
@@ -209,7 +224,7 @@ class AuditPhaseMixin:
 
         app_map = self.store.load_artifact("app_map")
         agent = CodeQualityAuditAgent(artifact_store=self.store)
-        result = agent.run(app_map=app_map, file_contents=None)
+        result = agent.run(app_map=app_map, file_contents=self._audit_inputs().file_contents)
         return result.model_dump()
 
     def _run_dependency_audit(self) -> Dict[str, Any]:
@@ -221,7 +236,7 @@ class AuditPhaseMixin:
 
         app_map = self.store.load_artifact("app_map")
         agent = DependencyAuditAgent(artifact_store=self.store)
-        result = agent.run(app_map=app_map, dependency_files=None)
+        result = agent.run(app_map=app_map, dependency_files=self._audit_inputs().dependency_files)
         return result.model_dump()
 
     def _run_release_readiness_audit(self) -> Dict[str, Any]:
@@ -232,8 +247,9 @@ class AuditPhaseMixin:
         self.context.transition_to(AuditPhase.AUDIT)
 
         app_map = self.store.load_artifact("app_map")
+        inputs = self._audit_inputs()
         agent = ReleaseReadinessAuditAgent(artifact_store=self.store)
-        result = agent.run(app_map=app_map, file_contents=None, file_list=None)
+        result = agent.run(app_map=app_map, file_contents=inputs.file_contents, file_list=inputs.file_list)
         return result.model_dump()
 
     def _run_performance(self) -> Dict[str, Any]:
