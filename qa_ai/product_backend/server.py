@@ -31,6 +31,7 @@ from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from qa_ai.product_backend.artifact_index import ArtifactIndex
 from qa_ai.product_backend.event_stream import EventStream
@@ -80,6 +81,22 @@ _LOCAL_ORIGINS = [
     "http://127.0.0.1:5174",
     "http://127.0.0.1:8765",
 ]
+
+
+# Host names the API answers to. Anything else (e.g. a rebound DNS name) gets 400.
+_DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+
+
+def _allowed_hosts() -> list[str]:
+    """Default loopback hosts plus any in INSPECTRA_ALLOWED_HOSTS (comma separated).
+
+    The Host header is validated because CORS only constrains what a browser lets a page
+    *read*, and a TCP-peer check (request.client) always sees the user's own browser on
+    127.0.0.1. Without it, a web page using DNS rebinding could drive this API (folder
+    search, runs that make outbound requests) as if it were same-origin.
+    """
+    extra = [host.strip() for host in os.getenv("INSPECTRA_ALLOWED_HOSTS", "").split(",") if host.strip()]
+    return _DEFAULT_ALLOWED_HOSTS + extra
 
 
 def create_product_app(
@@ -161,6 +178,8 @@ def create_product_app(
         allow_headers=["Content-Type", "Accept", "Authorization"],
         allow_credentials=False,
     )
+    # Added after CORS so it is the outermost layer and rejects bad hosts first.
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts())
 
     @app.get("/api/health", tags=["meta"], response_model=HealthResponse)
     def health_check() -> HealthResponse:
