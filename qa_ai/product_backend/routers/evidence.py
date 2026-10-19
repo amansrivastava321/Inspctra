@@ -20,6 +20,7 @@ from fastapi.responses import StreamingResponse
 
 from qa_ai.product_backend.artifact_index import ArtifactIndex, _guess_mime
 from qa_ai.product_backend.dependencies import get_artifact_index, get_storage
+from qa_ai.product_backend.http_headers import attachment_disposition
 from qa_ai.product_backend.models import EvidenceFile
 from qa_ai.product_backend.storage import ProductStorage
 
@@ -101,7 +102,7 @@ def download_evidence(
         stream,
         media_type=mime,
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": attachment_disposition(filename, "evidence"),
             "X-Content-Type-Options": "nosniff",
         },
     )
