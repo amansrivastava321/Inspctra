@@ -196,8 +196,14 @@ class OpenRouterClient:
                     error_type="timeout",
                     fallback_reason="timeout",
                 )
-            except requests.RequestException:
-                if attempt < self.max_retries - 1:
+            except requests.RequestException as exc:
+                status_code = getattr(getattr(exc, "response", None), "status_code", None)
+                # Report what happened (http_401, http_404, http_error:SSLError, ...) so a failing key or a
+                # retired model name is diagnosable. Never include the message: it can echo the request.
+                reason = f"http_{status_code}" if status_code is not None else f"http_error:{type(exc).__name__}"
+                client_error = status_code is not None and 400 <= status_code < 500
+                # A bad key, unknown model or malformed request will not change on retry.
+                if not client_error and attempt < self.max_retries - 1:
                     time.sleep(self.retry_backoff_seconds * (2**attempt))
                     continue
                 return OpenRouterResult(
@@ -207,7 +213,7 @@ class OpenRouterClient:
                     provider=self.provider_name,
                     latency_ms=(time.time() - start) * 1000,
                     error_type="http_error",
-                    fallback_reason="http_error",
+                    fallback_reason=reason,
                 )
             except (ValueError, KeyError, TypeError):
                 return OpenRouterResult(

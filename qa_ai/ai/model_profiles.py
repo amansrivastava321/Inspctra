@@ -93,17 +93,17 @@ def get_model_catalog() -> Dict[str, ModelDefinition]:
         ),
         # Optional direct providers. Used only when the user has configured a key and opted in to cloud
         # models; the model names here are defaults that QA_AI_GEMINI_MODEL / QA_AI_GROQ_MODEL override.
-        "gemini:gemini-2.5-pro": ModelDefinition(
-            model_id="gemini:gemini-2.5-pro",
+        "gemini:gemini-3.8-flash": ModelDefinition(
+            model_id="gemini:gemini-3.8-flash",
             provider=ProviderKind.GEMINI,
-            model_name="gemini-2.5-pro",
+            model_name="gemini-3.8-flash",
             capabilities={"orchestration", "repo_reasoning", "long_reasoning", "tool_json", "report"},
             privacy_class=ModelPrivacyClass.CLOUD_ALLOWED,
         ),
-        "groq:llama-3.3-70b-versatile": ModelDefinition(
-            model_id="groq:llama-3.3-70b-versatile",
+        "groq:openai/gpt-oss-120b": ModelDefinition(
+            model_id="groq:openai/gpt-oss-120b",
             provider=ProviderKind.GROQ,
-            model_name="llama-3.3-70b-versatile",
+            model_name="openai/gpt-oss-120b",
             capabilities={"orchestration", "repo_reasoning", "tool_json", "report"},
             privacy_class=ModelPrivacyClass.CLOUD_ALLOWED,
         ),
@@ -147,8 +147,8 @@ def get_model_catalog() -> Dict[str, ModelDefinition]:
 
 # Tried before a component's own cloud models when the provider is configured: the strongest
 # reasoner first for hard reasoning, the fastest first for report synthesis.
-_REASONING_FIRST = ["gemini:gemini-2.5-pro", "groq:llama-3.3-70b-versatile"]
-_SPEED_FIRST = ["groq:llama-3.3-70b-versatile", "gemini:gemini-2.5-pro"]
+_REASONING_FIRST = ["gemini:gemini-3.8-flash", "groq:openai/gpt-oss-120b"]
+_SPEED_FIRST = ["groq:openai/gpt-oss-120b", "gemini:gemini-3.8-flash"]
 
 
 def get_preferred_cloud_model_ids() -> Dict[RoutingComponent, List[str]]:

@@ -110,7 +110,7 @@ class Settings:
         )
     )
     gemini_model: str = field(
-        default_factory=lambda: os.environ.get("QA_AI_GEMINI_MODEL", "gemini-2.5-pro")
+        default_factory=lambda: os.environ.get("QA_AI_GEMINI_MODEL", "gemini-3.8-flash")
     )
     # Thinking models are slow; allow a longer timeout than the other providers.
     gemini_timeout_seconds: int = field(
@@ -125,7 +125,7 @@ class Settings:
         default_factory=lambda: os.environ.get("QA_AI_GROQ_BASE_URL", "https://api.groq.com/openai/v1")
     )
     groq_model: str = field(
-        default_factory=lambda: os.environ.get("QA_AI_GROQ_MODEL", "llama-3.3-70b-versatile")
+        default_factory=lambda: os.environ.get("QA_AI_GROQ_MODEL", "openai/gpt-oss-120b")
     )
     groq_timeout_seconds: int = field(
         default_factory=lambda: _int_env("QA_AI_GROQ_TIMEOUT_SECONDS", 45)
