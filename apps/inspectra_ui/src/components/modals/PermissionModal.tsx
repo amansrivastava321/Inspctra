@@ -125,7 +125,7 @@ export function PermissionModal({ permission, onApprove, onDeny, onClose }: Perm
           </button>
           <button onClick={() => onApprove(permission.id)} style={{
             padding: '7px 20px', borderRadius: 7, fontSize: 13, fontWeight: 500,
-            background: P.accent, color: '#fff', cursor: 'pointer',
+            background: P.accentSolid, color: '#fff', cursor: 'pointer',
           }}>
             Approve
           </button>

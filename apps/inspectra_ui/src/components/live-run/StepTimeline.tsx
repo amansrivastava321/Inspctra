@@ -56,7 +56,7 @@ export function StepTimeline({ steps, activeStepId, onSelectStep }: StepTimeline
                   gap: 4
                 }}>
                   {`Step ${step.index}: ${step.name}`}
-                  {(step as any).warning && <span title="Performance Warning" style={{ color: P.unclear, fontSize: 11 }}>⚠</span>}
+                  {step.warning && <span title="Performance Warning" style={{ color: P.unclear, fontSize: 11 }}>⚠</span>}
                 </span>
                 <span style={{ fontSize: 9, fontFamily: F.mono, color, flexShrink: 0, textTransform: 'uppercase' }}>{step.status}</span>
               </div>
@@ -66,7 +66,7 @@ export function StepTimeline({ steps, activeStepId, onSelectStep }: StepTimeline
                 </div>
               )}
               {(step.started_at || step.completed_at) && (
-                <div style={{ display: 'flex', gap: 5, marginTop: 4, color: P.textFaint, fontFamily: F.mono, fontSize: 9 }}>
+                <div style={{ display: 'flex', gap: 5, marginTop: 4, color: P.textMute, fontFamily: F.mono, fontSize: 9 }}>
                   {step.started_at && <span>{new Date(step.started_at).toLocaleTimeString()}</span>}
                   {step.started_at && step.completed_at && <span>→</span>}
                   {step.completed_at && <span>{new Date(step.completed_at).toLocaleTimeString()}</span>}
@@ -84,12 +84,12 @@ export function StepTimeline({ steps, activeStepId, onSelectStep }: StepTimeline
                   </span>
                 )}
                 {(step.evidence_count ?? step.evidence_ids?.length ?? 0) > 0 && (
-                  <span style={{ fontSize: 10, color: P.textFaint }}>
+                  <span style={{ fontSize: 10, color: P.textMute }}>
                     +{step.evidence_count ?? step.evidence_ids?.length ?? 0} ev
                   </span>
                 )}
                 {step.duration_ms && (
-                  <span style={{ fontSize: 10, color: P.textFaint, marginLeft: 'auto' }}>
+                  <span style={{ fontSize: 10, color: P.textMute, marginLeft: 'auto' }}>
                     {(step.duration_ms / 1000).toFixed(1)}s
                   </span>
                 )}

@@ -2,14 +2,36 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, Filter } from 'lucide-react';
 import { P, F } from '../design/tokens';
-import type { StatusKind } from '../design/tokens';
 import { AppShell, PageHeader, Card, Btn } from '../components/layout/AppShell';
-import { StatusBadge } from '../components/status/StatusBadge';
 import { EvidenceCard } from '../components/evidence/EvidenceCard';
 import { LoadingSkeleton, ErrorState, OfflineState, EmptyState, BlockedState, StaleDataState } from '../components/common/EmptyState';
 import { useApi } from '../hooks/useApi';
 import { get, evidenceDownloadUrl } from '../api/client';
-import type { EvidenceFile, EvidenceType, LiveRunRecord } from '../types/api';
+import type {
+  AccessibilitySummaryMetadata,
+  AccessibilityViolationsMetadata,
+  EvidenceFile,
+  EvidenceType,
+  LiveRunRecord,
+  PerformanceSummaryMetadata,
+  SecurityFindingsMetadata,
+  VisualDiffMetadata,
+  WebTimingMetadata,
+} from '../types/api';
+
+const percent = (value?: number) => (typeof value === 'number' ? `${(value * 100).toFixed(2)}%` : '—');
+
+/** Visual diff verdict, or null when the metadata does not carry both numbers. */
+function visualDiffPassed(meta: VisualDiffMetadata): boolean | null {
+  return typeof meta.diff_ratio === 'number' && typeof meta.threshold === 'number'
+    ? meta.diff_ratio <= meta.threshold
+    : null;
+}
+
+/** `metadata_json` is free-form JSON; this is the one place it is read as a per-type shape. */
+function metaOf<T>(file: EvidenceFile): T {
+  return (file.metadata_json ?? {}) as T;
+}
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
 
 function getEvidence() { return get<EvidenceFile[]>('/evidence'); }
@@ -166,11 +188,11 @@ export default function EvidenceCenterPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                       <div style={{ fontSize: 10, color: P.textMute, fontFamily: F.mono }}>PERFORMANCE SUMMARY PREVIEW</div>
                       <div style={{ padding: '8px 10px', borderRadius: 6, background: P.cardHi, border: `1px solid ${P.border}`, fontSize: 11, color: P.textDim }}>
-                        <div><strong>Metric Name:</strong> {String((selected.metadata_json as any).metric_name || '')}</div>
-                        <div><strong>Measured:</strong> {String((selected.metadata_json as any).measured_ms || '')}ms</div>
-                        <div><strong>Budget:</strong> {String((selected.metadata_json as any).budget_ms || '')}ms</div>
-                        <div><strong>Warn Threshold:</strong> {String((selected.metadata_json as any).warn_ms || '')}ms</div>
-                        <div><strong>Verdict:</strong> <span style={{ color: (selected.metadata_json as any).verdict === 'fail' ? P.fail : ((selected.metadata_json as any).verdict === 'warn' ? P.unclear : P.pass) }}>{(selected.metadata_json as any).verdict}</span></div>
+                        <div><strong>Metric Name:</strong> {String(metaOf<PerformanceSummaryMetadata>(selected).metric_name || '')}</div>
+                        <div><strong>Measured:</strong> {String(metaOf<PerformanceSummaryMetadata>(selected).measured_ms || '')}ms</div>
+                        <div><strong>Budget:</strong> {String(metaOf<PerformanceSummaryMetadata>(selected).budget_ms || '')}ms</div>
+                        <div><strong>Warn Threshold:</strong> {String(metaOf<PerformanceSummaryMetadata>(selected).warn_ms || '')}ms</div>
+                        <div><strong>Verdict:</strong> <span style={{ color: metaOf<PerformanceSummaryMetadata>(selected).verdict === 'fail' ? P.fail : (metaOf<PerformanceSummaryMetadata>(selected).verdict === 'warn' ? P.unclear : P.pass) }}>{metaOf<PerformanceSummaryMetadata>(selected).verdict}</span></div>
                       </div>
                     </div>
                   )}
@@ -179,7 +201,7 @@ export default function EvidenceCenterPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                       <div style={{ fontSize: 10, color: P.textMute, fontFamily: F.mono }}>WEB TIMING METRICS PREVIEW</div>
                       <div style={{ padding: '8px 10px', borderRadius: 6, background: P.cardHi, border: `1px solid ${P.border}`, fontSize: 11, color: P.textDim }}>
-                        {Object.entries((selected.metadata_json as any).metrics || {}).map(([k, v]) => (
+                        {Object.entries(metaOf<WebTimingMetadata>(selected).metrics || {}).map(([k, v]) => (
                           <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                             <span style={{ fontSize: 10, color: P.textMute, fontFamily: F.mono }}>{k}</span>
                             <span style={{ fontSize: 11, color: P.text, fontWeight: 500 }}>{String(v)}</span>
@@ -193,10 +215,10 @@ export default function EvidenceCenterPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                       <div style={{ fontSize: 10, color: P.textMute, fontFamily: F.mono }}>ACCESSIBILITY SUMMARY PREVIEW</div>
                       <div style={{ padding: '8px 10px', borderRadius: 6, background: P.cardHi, border: `1px solid ${P.border}`, fontSize: 11, color: P.textDim }}>
-                        <div><strong>Total Violations:</strong> {String((selected.metadata_json as any).total_violations ?? '')}</div>
-                        <div><strong>Max Budget:</strong> {String((selected.metadata_json as any).budget_violations ?? '')}</div>
-                        <div><strong>Warn Threshold:</strong> {String((selected.metadata_json as any).warn_violations ?? '')}</div>
-                        <div><strong>Verdict:</strong> <span style={{ color: (selected.metadata_json as any).verdict === 'fail' ? P.fail : ((selected.metadata_json as any).verdict === 'warn' ? P.unclear : P.pass) }}>{(selected.metadata_json as any).verdict}</span></div>
+                        <div><strong>Total Violations:</strong> {String(metaOf<AccessibilitySummaryMetadata>(selected).total_violations ?? '')}</div>
+                        <div><strong>Max Budget:</strong> {String(metaOf<AccessibilitySummaryMetadata>(selected).budget_violations ?? '')}</div>
+                        <div><strong>Warn Threshold:</strong> {String(metaOf<AccessibilitySummaryMetadata>(selected).warn_violations ?? '')}</div>
+                        <div><strong>Verdict:</strong> <span style={{ color: metaOf<AccessibilitySummaryMetadata>(selected).verdict === 'fail' ? P.fail : (metaOf<AccessibilitySummaryMetadata>(selected).verdict === 'warn' ? P.unclear : P.pass) }}>{metaOf<AccessibilitySummaryMetadata>(selected).verdict}</span></div>
                       </div>
                     </div>
                   )}
@@ -205,9 +227,9 @@ export default function EvidenceCenterPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                       <div style={{ fontSize: 10, color: P.textMute, fontFamily: F.mono }}>ACCESSIBILITY VIOLATIONS PREVIEW</div>
                       <div style={{ padding: '8px 10px', borderRadius: 6, background: P.cardHi, border: `1px solid ${P.border}`, fontSize: 11, color: P.textDim }}>
-                        <div><strong>Total Violations:</strong> {String((selected.metadata_json as any).a11y_result?.total_violations ?? '')}</div>
-                        <div><strong>Max Budget:</strong> {String((selected.metadata_json as any).budget_violations ?? '')}</div>
-                        <div><strong>Warn Threshold:</strong> {String((selected.metadata_json as any).warn_violations ?? '')}</div>
+                        <div><strong>Total Violations:</strong> {String(metaOf<AccessibilityViolationsMetadata>(selected).a11y_result?.total_violations ?? '')}</div>
+                        <div><strong>Max Budget:</strong> {String(metaOf<AccessibilityViolationsMetadata>(selected).budget_violations ?? '')}</div>
+                        <div><strong>Warn Threshold:</strong> {String(metaOf<AccessibilityViolationsMetadata>(selected).warn_violations ?? '')}</div>
                       </div>
                     </div>
                   )}
@@ -216,10 +238,10 @@ export default function EvidenceCenterPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                       <div style={{ fontSize: 10, color: P.textMute, fontFamily: F.mono }}>VISUAL DIFF PREVIEW</div>
                       <div style={{ padding: '8px 10px', borderRadius: 6, background: P.cardHi, border: `1px solid ${P.border}`, fontSize: 11, color: P.textDim }}>
-                        <div><strong>Diff Ratio:</strong> {((selected.metadata_json as any).diff_ratio * 100).toFixed(2)}%</div>
-                        <div><strong>Threshold:</strong> {((selected.metadata_json as any).threshold * 100).toFixed(2)}%</div>
-                        <div><strong>Verdict:</strong> <span style={{ color: (selected.metadata_json as any).diff_ratio <= (selected.metadata_json as any).threshold ? P.pass : P.fail }}>
-                          {(selected.metadata_json as any).diff_ratio <= (selected.metadata_json as any).threshold ? 'PASSED' : 'FAILED'}
+                        <div><strong>Diff Ratio:</strong> {percent(metaOf<VisualDiffMetadata>(selected).diff_ratio)}</div>
+                        <div><strong>Threshold:</strong> {percent(metaOf<VisualDiffMetadata>(selected).threshold)}</div>
+                        <div><strong>Verdict:</strong> <span style={{ color: visualDiffPassed(metaOf<VisualDiffMetadata>(selected)) === null ? P.textMute : visualDiffPassed(metaOf<VisualDiffMetadata>(selected)) ? P.pass : P.fail }}>
+                          {visualDiffPassed(metaOf<VisualDiffMetadata>(selected)) === null ? 'UNKNOWN' : visualDiffPassed(metaOf<VisualDiffMetadata>(selected)) ? 'PASSED' : 'FAILED'}
                         </span></div>
                       </div>
                     </div>
@@ -229,9 +251,9 @@ export default function EvidenceCenterPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                       <div style={{ fontSize: 10, color: P.textMute, fontFamily: F.mono }}>SECURITY FINDINGS PREVIEW</div>
                       <div style={{ padding: '8px 10px', borderRadius: 6, background: P.cardHi, border: `1px solid ${P.border}`, fontSize: 11, color: P.textDim }}>
-                        <div><strong>Total Findings:</strong> {String((selected.metadata_json as any).findings?.length ?? 0)}</div>
-                        <div><strong>Critical/High:</strong> {String((selected.metadata_json as any).findings?.filter((f: any) => ['critical', 'high'].includes(f.severity)).length ?? 0)}</div>
-                        <div><strong>Warnings:</strong> {String((selected.metadata_json as any).findings?.filter((f: any) => f.severity === 'medium').length ?? 0)}</div>
+                        <div><strong>Total Findings:</strong> {String(metaOf<SecurityFindingsMetadata>(selected).findings?.length ?? 0)}</div>
+                        <div><strong>Critical/High:</strong> {String(metaOf<SecurityFindingsMetadata>(selected).findings?.filter((f) => ['critical', 'high'].includes(f.severity)).length ?? 0)}</div>
+                        <div><strong>Warnings:</strong> {String(metaOf<SecurityFindingsMetadata>(selected).findings?.filter((f) => f.severity === 'medium').length ?? 0)}</div>
                       </div>
                       <div style={{ fontSize: 9, color: P.pass, marginTop: 2, fontStyle: 'italic' }}>
                         ℹ Sensitive headers (Authorization, Cookie, Set-Cookie) are redacted.

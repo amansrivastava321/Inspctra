@@ -4,7 +4,7 @@ import { P, F } from '../design/tokens';
 import type { StatusKind } from '../design/tokens';
 import { AppShell, PageHeader, Card, Btn } from '../components/layout/AppShell';
 import { StatusBadge } from '../components/status/StatusBadge';
-import { LoadingSkeleton, ErrorState, OfflineState } from '../components/common/EmptyState';
+import { LoadingSkeleton, OfflineState } from '../components/common/EmptyState';
 import { useApi } from '../hooks/useApi';
 import { get, post } from '../api/client';
 import type { ModelProvider, ModelProfile, HardwareProfile } from '../types/api';

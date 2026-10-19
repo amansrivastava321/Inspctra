@@ -35,6 +35,20 @@ class TestResult(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+# Errors raised before the target answered at all (nothing was listening, DNS failed, ...).
+TARGET_UNREACHABLE_ERROR_TYPES = frozenset({"ConnectionError", "ConnectTimeout"})
+
+
+def is_target_unreachable(outcome: Any, metadata: Optional[Dict[str, Any]]) -> bool:
+    """True when a test errored only because the target could not be reached.
+
+    That means the test could not run, not that the application misbehaved, so it must
+    not be reported as a finding about the application.
+    """
+    outcome_value = getattr(outcome, "value", outcome)
+    return outcome_value == TestOutcome.ERROR.value and (metadata or {}).get("error_type") in TARGET_UNREACHABLE_ERROR_TYPES
+
+
 class SuiteResult(BaseModel):
     """Results for a single test suite."""
 

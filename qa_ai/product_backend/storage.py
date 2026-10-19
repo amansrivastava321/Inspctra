@@ -405,6 +405,33 @@ class RetestLineageDepthExceededError(Exception):
         self.attempted_depth = attempted_depth
 
 
+class _StoredResult:
+    """Rows of one statement, fetched under the storage lock (see ``ProductStorage._execute``)."""
+
+    __slots__ = ("_rows", "_pos", "lastrowid", "rowcount")
+
+    def __init__(self, cursor: sqlite3.Cursor) -> None:
+        self._rows = cursor.fetchall() if cursor.description is not None else []
+        self._pos = 0
+        self.lastrowid = cursor.lastrowid
+        self.rowcount = cursor.rowcount
+
+    def fetchone(self) -> Optional[sqlite3.Row]:
+        if self._pos >= len(self._rows):
+            return None
+        row = self._rows[self._pos]
+        self._pos += 1
+        return row
+
+    def fetchall(self) -> List[sqlite3.Row]:
+        rows = self._rows[self._pos:]
+        self._pos = len(self._rows)
+        return rows
+
+    def __iter__(self):
+        return iter(self.fetchall())
+
+
 class ProductStorage:
     """
     Thread-safe SQLite CRUD for the product backend.
@@ -632,10 +659,16 @@ class ProductStorage:
 
     # ── helpers ───────────────────────────────────────────────────────────────
 
-    def _execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
-        """Execute one parameterized query. Thread-safe."""
+    def _execute(self, sql: str, params: tuple = ()) -> "_StoredResult":
+        """Execute one parameterized query. Thread-safe.
+
+        All rows are read while the lock is held. Returning the live cursor would
+        let callers fetch after the lock is released, so concurrent requests
+        sharing this one connection could corrupt each other's reads (spurious
+        ``None`` rows and ``InterfaceError``).
+        """
         with self._lock:
-            return self._get_conn().execute(sql, params)
+            return _StoredResult(self._get_conn().execute(sql, params))
 
     def _executemany(self, sql: str, params_seq: list) -> None:
         with self._lock:

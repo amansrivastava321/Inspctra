@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Play, Stethoscope, Trash2 } from 'lucide-react';
-import { P, F, STATUS_MAP } from '../design/tokens';
+import { P, F } from '../design/tokens';
 import type { StatusKind } from '../design/tokens';
 import { AppShell, PageHeader, Card, Btn } from '../components/layout/AppShell';
 import { StatusBadge } from '../components/status/StatusBadge';

@@ -43,10 +43,11 @@ export function Topbar({
 
   return (
     <>
-      <div style={{
-        height: 44, flexShrink: 0,
+      <header style={{
+        minHeight: 44, flexShrink: 0,
         borderBottom: `1px solid ${P.border}`,
-        display: 'flex', alignItems: 'center', padding: isMobile ? '0 12px' : '0 20px',
+        // Grow (not overflow) when many actions wrap, otherwise wrapped buttons are covered by page content.
+        display: 'flex', alignItems: 'center', padding: isMobile ? '4px 12px' : '4px 20px',
         background: P.surface, gap: isMobile ? 8 : 12,
       }}>
         {onToggleSidebar && (
@@ -122,7 +123,7 @@ export function Topbar({
         <BackendStatusIndicator />
 
         {actions && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{actions}</div>}
-      </div>
+      </header>
 
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
     </>

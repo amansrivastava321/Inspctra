@@ -125,3 +125,24 @@ def test_workflow_uses_only_expected_pinned_actions_and_has_no_deployment() -> N
     }
     assert "deploy" not in commands.lower()
     assert "publish" not in commands.lower()
+
+
+def test_frontend_job_runs_end_to_end_tests_against_a_started_backend() -> None:
+    frontend = _load_workflow()["jobs"]["frontend"]
+    commands = _run_commands(frontend)
+    names = [step.get("name") for step in frontend["steps"]]
+
+    assert int(frontend["timeout-minutes"]) <= 30
+    assert "npm run test:e2e --workspace=inspectra-ui" in commands
+    assert "uvicorn qa_ai.server:app" in commands
+    assert "INSPECTRA_ENABLE_DEV_CLEANUP=true" in commands
+    assert names.index("Start backend for end-to-end tests") < names.index("Run end-to-end tests")
+    assert names.index("Install Chromium for end-to-end tests") < names.index("Run end-to-end tests")
+
+
+def test_playwright_is_pinned_to_an_exact_version() -> None:
+    requirements = (REPOSITORY_ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+    pinned = [line for line in requirements if line.split("==")[0].strip().lower() == "playwright"]
+
+    assert pinned, "playwright must be listed in requirements.txt"
+    assert all("==" in line for line in pinned), "playwright must be pinned with =="

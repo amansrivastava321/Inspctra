@@ -2,8 +2,8 @@
  * product-flow.spec.ts — Playwright E2E tests for Inspectra product flow.
  *
  * Prerequisites:
- *   - Backend running on http://localhost:8765
- *   - Frontend dev server on http://localhost:5173 (or VITE_PORT env)
+ *   - Backend running on http://127.0.0.1:8765
+ *   - Frontend dev server on http://127.0.0.1:5173 (or VITE_PORT env)
  *   - No VITE_USE_MOCKS=true
  *
  * Run:
@@ -17,8 +17,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { homedir } from 'os';
 
-const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
-const API  = process.env.E2E_API_URL  ?? 'http://localhost:8765';
+const BASE = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5173';
+const API  = process.env.E2E_API_URL  ?? 'http://127.0.0.1:8765';
 
 // Unique suffix per test run — prevents leftover E2E records from prior runs colliding.
 const RUN_TS = Date.now();
@@ -99,7 +99,8 @@ test('02 - create project navigates to add app', async ({ page }) => {
   await navTo(page, '/projects');
   // Header "Connect app" button is always visible regardless of empty state.
   // "Connect first app" is a separate empty-state-only button — use exact match to avoid strict-mode error.
-  const connectBtn = page.getByRole('button', { name: /^connect app$/i });
+  // The sidebar also has a "Connect App" nav item, so scope the lookup to the page content.
+  const connectBtn = page.getByRole('main').getByRole('button', { name: /^connect app$/i });
   await expect(connectBtn).toBeVisible();
   await connectBtn.click();
   await expect(page).toHaveURL(/\/projects\/new/);
@@ -313,7 +314,8 @@ test('11f - completed run allows AI evidence evaluation without changing verdict
     resp.url().includes(`/api/runs/${run.id}/evaluate-ai`) && resp.request().method() === 'POST',
     { timeout: 30_000 }
   );
-  await evalBtn.click({ force: true });
+  // No `force`: a real user must be able to click it (it was once covered by the run diagram).
+  await evalBtn.click();
   await evalReqPromise;
   const evalResp = await evalRespPromise;
   expect(evalResp.status()).toBe(201);
@@ -699,7 +701,7 @@ test('16 - web pack run shows security sweep findings and report summary', async
 
 test('14 - offline state shown when backend unreachable', async ({ page }) => {
   // Use `${BASE}/api/**` not `**/api/**`:
-  // The broad glob also matches http://localhost:5173/src/api/client.ts (Vite source
+  // The broad glob also matches http://127.0.0.1:5173/src/api/client.ts (Vite source
   // module), aborting the JS bundle and leaving a blank page.
   // Anchored pattern only matches actual API calls at the proxy root.
   await page.route(`${BASE}/api/**`, route => route.abort());

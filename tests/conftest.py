@@ -2,6 +2,8 @@
 conftest.py - Shared test fixtures for the QA platform test suite.
 """
 
+import os
+
 import pytest
 from pathlib import Path
 import tempfile
@@ -9,6 +11,9 @@ import shutil
 import json
 
 from qa_ai.runtime.artifact_store import ArtifactStore, reset_artifact_store
+
+# FastAPI's TestClient sends "Host: testserver"; the product API only answers to loopback hosts otherwise.
+os.environ.setdefault("INSPECTRA_ALLOWED_HOSTS", "testserver,testclient")
 
 
 @pytest.fixture

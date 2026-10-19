@@ -294,7 +294,7 @@ export function Btn({ children, onClick, variant = 'secondary', size = 'md', dis
   };
   const sizeMap = { sm: { fontSize: 12, padding: '5px 10px' }, md: { fontSize: 13, padding: '7px 14px' }, lg: { fontSize: 14, padding: '9px 18px' } };
   const variantMap: Record<string, CSSProperties> = {
-    primary:   { background: P.accent, color: '#fff' },
+    primary:   { background: P.accentSolid, color: '#fff' },
     secondary: { background: P.cardHi, border: `1px solid ${P.border}`, color: P.text },
     ghost:     { background: 'transparent', color: P.textDim },
     danger:    { background: P.failSoft, border: `1px solid ${P.fail}33`, color: P.fail },

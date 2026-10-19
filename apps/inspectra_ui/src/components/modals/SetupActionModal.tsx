@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-import { Terminal, X, Clock, HardDrive, Wifi } from 'lucide-react';
+import { Terminal, X, Clock, HardDrive } from 'lucide-react';
 import { P, F } from '../../design/tokens';
 import type { DoctorFix } from '../../types/api';
 

@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from qa_ai.product_backend.storage import ProductStorage
 from qa_ai.product_backend.artifact_index import ArtifactIndex
+from qa_ai.product_backend.http_headers import attachment_disposition
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["visual_baselines"])
@@ -176,7 +177,7 @@ def download_baseline(
         stream,
         media_type=mime,
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": attachment_disposition(filename, "baseline.png"),
             "X-Content-Type-Options": "nosniff",
         },
     )

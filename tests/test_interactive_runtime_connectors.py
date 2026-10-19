@@ -867,7 +867,7 @@ class TestManagerArtifacts:
 # ── 19. CLI dry-run shows connector plan ──────────────────────────────────────
 
 class TestCLIConnectors:
-    def test_cli_validate_runtime_dry_run_no_crash(self):
+    def test_cli_validate_runtime_dry_run_no_crash(self, tmp_path):
         """CLI dry-run with connector example should not raise."""
         import subprocess
         result = subprocess.run(
@@ -876,6 +876,7 @@ class TestCLIConnectors:
                 "validate-runtime",
                 "--pack", "examples/interactive_runtime/phase2_validation_pack.yaml",
                 "--dry-run",
+                "--output-dir", str(tmp_path),
             ],
             capture_output=True,
             text=True,
@@ -886,7 +887,7 @@ class TestCLIConnectors:
         # Should exit 0 for dry-run
         assert result.returncode == 0, f"stderr: {result.stderr[:500]}"
 
-    def test_cli_runtime_doctor_dry_run_no_crash(self):
+    def test_cli_runtime_doctor_dry_run_no_crash(self, tmp_path):
         import subprocess
         result = subprocess.run(
             [
@@ -894,6 +895,7 @@ class TestCLIConnectors:
                 "runtime-doctor",
                 "--pack", "examples/interactive_runtime/phase2_validation_pack.yaml",
                 "--dry-run",
+                "--output-dir", str(tmp_path),
             ],
             capture_output=True,
             text=True,

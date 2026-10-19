@@ -12,6 +12,7 @@ import logging
 import time
 
 from qa_ai.runtime.artifact_store import ArtifactStore
+from qa_ai.schemas.execution_result_schema import is_target_unreachable
 from qa_ai.schemas.finding_schema import Finding, FindingSet, FindingSeverity, FindingCategory
 
 logger = logging.getLogger(__name__)
@@ -197,6 +198,8 @@ class FindingCorrelator:
 
         for suite in suites:
             for test in suite.get("tests", []):
+                if is_target_unreachable(test.get("outcome"), test.get("metadata")):
+                    continue
                 if test.get("outcome") in ("failed", "error"):
                     findings.append(Finding(
                         id=test.get("test_id", ""),

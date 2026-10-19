@@ -164,10 +164,10 @@ export function RunHistoryPanel({ runId, onSelectStep }: RunHistoryPanelProps) {
     <Card>
       <section aria-labelledby={`run-history-${runId}`} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div>
-          <h3 id={`run-history-${runId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0, color: P.text, fontSize: 11 }}>
+          <h2 id={`run-history-${runId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0, color: P.text, fontSize: 11 }}>
             <History size={14} color={P.accent} aria-hidden />
             Historical Context
-          </h3>
+          </h2>
           <div style={{ color: P.textMute, fontSize: 10, marginTop: 4 }}>
             Deterministic records for this exact validation pack and app target.
           </div>

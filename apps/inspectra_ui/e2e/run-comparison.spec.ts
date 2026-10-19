@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
-const python = resolve(repo, 'venv/bin/python');
+const python = process.env.E2E_PYTHON ?? resolve(repo, 'venv/bin/python');
 const helper = resolve(repo, 'apps/inspectra_ui/e2e/fixtures/run_comparison.py');
 function fixture(command: string, directory: string, api?: string) {
   return JSON.parse(execFileSync(python, [helper, command, directory, ...(api ? [api] : [])], { cwd: repo, encoding: 'utf8', timeout: 30_000 }));

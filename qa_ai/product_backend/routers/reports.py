@@ -17,6 +17,7 @@ from fastapi.responses import Response, StreamingResponse
 
 from qa_ai.product_backend.artifact_index import ArtifactIndex, _guess_mime
 from qa_ai.product_backend.dependencies import get_artifact_index, get_storage
+from qa_ai.product_backend.http_headers import attachment_disposition
 from qa_ai.product_backend.models import ReportRecord, RunReportSummary
 from qa_ai.product_backend.report_exporters import ReportExportError, RunReportExporter
 from qa_ai.product_backend.storage import ProductStorage
@@ -151,7 +152,7 @@ def export_report(
         stream,
         media_type=mime,
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": attachment_disposition(filename, "report"),
             "X-Content-Type-Options": "nosniff",
         },
     )

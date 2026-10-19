@@ -1260,7 +1260,7 @@ export default function AddAppPage() {
                 onClick={() => nav(`/apps/${savedApp.id}`)}
                 style={{
                   padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  border: 'none', background: P.accent, color: '#fff', cursor: 'pointer',
+                  border: 'none', background: P.accentSolid, color: '#fff', cursor: 'pointer',
                 }}
               >
                 Open App Detail →
