@@ -2278,6 +2278,13 @@ interface AiTestPlanPreviewModalProps {
   onAcceptSuccess: () => void;
 }
 
+/** Cases selected by default: everything except preview-only cases that cannot be accepted. */
+function defaultSelection(preview: AITestPlanPreview): Set<number> {
+  return new Set(
+    preview.test_cases.flatMap((testCase, index) => (testCaseContainsPreview(testCase) ? [] : [index])),
+  );
+}
+
 export function AiTestPlanPreviewModal({
   packId,
   preview: initialPreview,
@@ -2285,16 +2292,14 @@ export function AiTestPlanPreviewModal({
   onAcceptSuccess,
 }: AiTestPlanPreviewModalProps) {
   const [previewData, setPreviewData] = useState<AITestPlanPreview>(initialPreview);
-  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  // Computed up front (not in an effect) so the first render already shows the real count
+  // instead of flashing "Accept Selected (0)".
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(() => defaultSelection(initialPreview));
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState('');
 
   useEffect(() => {
-    setSelectedIndices(new Set(
-      initialPreview.test_cases.flatMap((testCase, index) =>
-        testCaseContainsPreview(testCase) ? [] : [index]
-      ),
-    ));
+    setSelectedIndices(defaultSelection(initialPreview));
   }, [initialPreview]);
 
   const handleToggleSelect = (index: number) => {
