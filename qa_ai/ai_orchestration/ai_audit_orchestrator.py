@@ -95,7 +95,7 @@ class AIAuditOrchestrator:
     def _model_available(self) -> bool:
         try:
             doctor = ModelRouter(artifact_store=self.store).doctor()
-            if doctor.get("openrouter_configured") and doctor.get("allow_cloud_models"):
+            if doctor.get("cloud_configured") and doctor.get("allow_cloud_models"):
                 return True
             router = get_router(client=OllamaClient())
             checks = router.check_all_models()

@@ -1,5 +1,9 @@
 """
-openrouter_client.py - OpenAI-compatible client for OpenRouter.
+openrouter_client.py - OpenAI-compatible chat client.
+
+Named for OpenRouter, but it speaks the standard /chat/completions protocol, so the same
+class serves any OpenAI-compatible provider (Gemini and Groq expose such endpoints). The
+provider name is reported in every result so routing and usage logs stay accurate.
 """
 
 from __future__ import annotations
@@ -32,7 +36,9 @@ class OpenRouterClient:
         long_timeout_seconds: int = 180,
         max_retries: int = 2,
         retry_backoff_seconds: float = 0.5,
+        provider_name: str = "openrouter",
     ):
+        self.provider_name = provider_name
         self.api_key = api_key or ""
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = int(timeout_seconds)
@@ -82,7 +88,7 @@ class OpenRouterClient:
                 success=False,
                 content="",
                 model=model,
-                provider="openrouter",
+                provider=self.provider_name,
                 latency_ms=result.latency_ms,
                 error_type="invalid_response",
                 fallback_reason="invalid_json",
@@ -102,7 +108,7 @@ class OpenRouterClient:
                 success=False,
                 content="",
                 model=model,
-                provider="openrouter",
+                provider=self.provider_name,
                 latency_ms=0.0,
                 error_type="auth",
                 fallback_reason="missing_api_key",
@@ -140,7 +146,7 @@ class OpenRouterClient:
                         success=False,
                         content="",
                         model=model,
-                        provider="openrouter",
+                        provider=self.provider_name,
                         latency_ms=(time.time() - start) * 1000,
                         error_type="rate_limited",
                         fallback_reason="rate_limited",
@@ -150,7 +156,7 @@ class OpenRouterClient:
                         success=False,
                         content="",
                         model=model,
-                        provider="openrouter",
+                        provider=self.provider_name,
                         latency_ms=(time.time() - start) * 1000,
                         error_type="provider_unavailable",
                         fallback_reason="provider_unavailable",
@@ -164,7 +170,7 @@ class OpenRouterClient:
                         success=False,
                         content="",
                         model=model,
-                        provider="openrouter",
+                        provider=self.provider_name,
                         latency_ms=(time.time() - start) * 1000,
                         error_type="invalid_response",
                         fallback_reason="invalid_response",
@@ -174,7 +180,7 @@ class OpenRouterClient:
                     success=True,
                     content=content,
                     model=str(data.get("model") or model),
-                    provider="openrouter",
+                    provider=self.provider_name,
                     latency_ms=(time.time() - start) * 1000,
                 )
             except requests.Timeout:
@@ -185,7 +191,7 @@ class OpenRouterClient:
                     success=False,
                     content="",
                     model=model,
-                    provider="openrouter",
+                    provider=self.provider_name,
                     latency_ms=(time.time() - start) * 1000,
                     error_type="timeout",
                     fallback_reason="timeout",
@@ -198,7 +204,7 @@ class OpenRouterClient:
                     success=False,
                     content="",
                     model=model,
-                    provider="openrouter",
+                    provider=self.provider_name,
                     latency_ms=(time.time() - start) * 1000,
                     error_type="http_error",
                     fallback_reason="http_error",
@@ -208,7 +214,7 @@ class OpenRouterClient:
                     success=False,
                     content="",
                     model=model,
-                    provider="openrouter",
+                    provider=self.provider_name,
                     latency_ms=(time.time() - start) * 1000,
                     error_type="invalid_response",
                     fallback_reason="invalid_response",
@@ -218,7 +224,7 @@ class OpenRouterClient:
             success=False,
             content="",
             model=model,
-            provider="openrouter",
+            provider=self.provider_name,
             latency_ms=0.0,
             error_type="unknown",
             fallback_reason="unknown",

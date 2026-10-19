@@ -34,6 +34,7 @@ _KNOWN_ENV_VARS: dict[str, str] = {
     "openai":               "OPENAI_API_KEY",
     "anthropic":            "ANTHROPIC_API_KEY",
     "gemini":               "GOOGLE_API_KEY",
+    "groq":                 "GROQ_API_KEY",
     "custom_openai":        "CUSTOM_OPENAI_API_KEY",
 }
 

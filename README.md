@@ -58,6 +58,7 @@ Main commands:
 - [Distributed Runtime](docs/distributed_runtime/multi_actor_model.md)
 - [Mobile Runtime](docs/mobile_runtime/mobile_runtime_overview.md)
 - [AI Reasoning](docs/ai_reasoning/ai_reasoning_overview.md)
+- [Optional cloud models (Gemini, Groq)](docs/ai_reasoning/cloud_providers.md)
 - [Controlled Remediation](docs/safety/remediation_safety_principles.md)
 - [Improvement](docs/improvement/continuous_improvement_loop.md)
 - [Benchmarking](docs/benchmarking/benchmark_framework.md)

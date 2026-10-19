@@ -15,7 +15,7 @@ import subprocess
 import shutil
 import uuid
 
-from qa_ai.ai.model_profiles import RoutingComponent
+from qa_ai.ai.model_profiles import CLOUD_PROVIDER_NAMES, RoutingComponent
 from qa_ai.ai.model_router import ModelRouter
 from qa_ai.cli.profile_manager import ProfileManager
 from qa_ai.cli.run_summary import RunSummary
@@ -1036,7 +1036,7 @@ class AuditCommand:
             deterministic_fallback=lambda: "deterministic-privacy-safe",
         )
         safe_provider = result.provider in {"ollama", "deterministic"} or (
-            result.provider == "openrouter" and bool(router.settings.redact_cloud_context)
+            result.provider in CLOUD_PROVIDER_NAMES and bool(router.settings.redact_cloud_context)
         )
         return {
             "status": "ok" if result.success else "failed",

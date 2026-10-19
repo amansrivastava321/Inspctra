@@ -9,12 +9,12 @@ import json
 import time
 from typing import Any, Callable, Dict, List, Optional
 
-from qa_ai.ai.model_profiles import RoutingComponent
+from qa_ai.ai.model_profiles import CLOUD_PROVIDER_NAMES, RoutingComponent
 from qa_ai.ai.model_routing_policy import ModelRoutingPolicy
 from qa_ai.ai.model_usage_logger import ModelUsageLogger
 from qa_ai.ai.ollama_client import OllamaClient
 from qa_ai.ai.openrouter_client import OpenRouterClient
-from qa_ai.config.settings import Settings, get_settings
+from qa_ai.config.settings import Settings, cloud_provider_keys, get_settings
 from qa_ai.runtime.artifact_store import ArtifactStore
 
 
@@ -38,6 +38,7 @@ class ModelRouter:
         openrouter_client: OpenRouterClient | Any | None = None,
         ollama_client: OllamaClient | Any | None = None,
         artifact_store: ArtifactStore | None = None,
+        cloud_clients: Dict[str, Any] | None = None,
     ):
         self.settings = settings or get_settings()
         self.policy = ModelRoutingPolicy(settings=self.settings)
@@ -48,6 +49,25 @@ class ModelRouter:
             timeout_seconds=self.settings.openrouter_timeout_seconds,
             long_timeout_seconds=self.settings.openrouter_long_timeout_seconds,
         )
+        # One OpenAI-compatible client per cloud provider; Gemini and Groq exist only when configured.
+        self.cloud_clients: Dict[str, Any] = {"openrouter": self.openrouter}
+        if self.settings.gemini_api_key:
+            self.cloud_clients["gemini"] = OpenRouterClient(
+                api_key=self.settings.gemini_api_key,
+                base_url=self.settings.gemini_base_url,
+                timeout_seconds=self.settings.gemini_timeout_seconds,
+                long_timeout_seconds=self.settings.gemini_timeout_seconds,
+                provider_name="gemini",
+            )
+        if self.settings.groq_api_key:
+            self.cloud_clients["groq"] = OpenRouterClient(
+                api_key=self.settings.groq_api_key,
+                base_url=self.settings.groq_base_url,
+                timeout_seconds=self.settings.groq_timeout_seconds,
+                long_timeout_seconds=self.settings.groq_timeout_seconds,
+                provider_name="groq",
+            )
+        self.cloud_clients.update(cloud_clients or {})
         self.usage_logger = ModelUsageLogger(artifact_store=artifact_store)
 
     def route(
@@ -69,11 +89,15 @@ class ModelRouter:
             fallback_used = idx > 0
             start = time.time()
             try:
-                if provider == "openrouter":
+                if provider in CLOUD_PROVIDER_NAMES:
+                    client = self.cloud_clients.get(provider)
+                    if client is None:
+                        last_reason = f"{provider}_not_configured"
+                        continue
                     result = (
-                        self.openrouter.chat_json(model=model, prompt=cloud_prompt)
+                        client.chat_json(model=model, prompt=cloud_prompt)
                         if require_json
-                        else self.openrouter.chat(model=model, prompt=cloud_prompt)
+                        else client.chat(model=model, prompt=cloud_prompt)
                     )
                     self.usage_logger.log(
                         component=component.value,
@@ -229,6 +253,10 @@ class ModelRouter:
             "allow_cloud_models": bool(self.settings.allow_cloud_models),
             "private_code_mode": bool(self.settings.private_code_mode),
             "openrouter_configured": bool(self.settings.openrouter_api_key),
+            "gemini_configured": bool(self.settings.gemini_api_key),
+            "groq_configured": bool(self.settings.groq_api_key),
+            "cloud_providers_configured": sorted(cloud_provider_keys(self.settings)),
+            "cloud_configured": bool(cloud_provider_keys(self.settings)),
             "local_provider": self.settings.local_fallback_provider,
             "sample_decision": {
                 "component": policy_check.component,
