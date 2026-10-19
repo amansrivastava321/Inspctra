@@ -50,7 +50,7 @@ def test_policy_missing_api_key_forces_local() -> None:
     )
     decision = policy.decide(component=RoutingComponent.HUGE_REPO_REASONING, context={})
     assert decision.selected_provider == "ollama"
-    assert decision.reason == "missing_openrouter_api_key"
+    assert decision.reason == "missing_cloud_api_key"
 
 
 def test_embeddings_always_local() -> None:

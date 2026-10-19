@@ -24,6 +24,8 @@ _PATTERNS = [
     # API key patterns
     (re.compile(r"sk-[A-Za-z0-9\-_]{20,}", re.I), "[REDACTED_API_KEY]"),
     (re.compile(r"sk-or-[A-Za-z0-9\-_]{20,}", re.I), "[REDACTED_OPENROUTER_KEY]"),
+    (re.compile(r"AIza[0-9A-Za-z\-_]{35}"), "[REDACTED_GOOGLE_API_KEY]"),
+    (re.compile(r"gsk_[A-Za-z0-9]{20,}"), "[REDACTED_GROQ_KEY]"),
     # Bearer tokens
     (re.compile(r"Bearer\s+[A-Za-z0-9\-\._~+/]{20,}", re.I), "Bearer [REDACTED]"),
     # Authorization header values

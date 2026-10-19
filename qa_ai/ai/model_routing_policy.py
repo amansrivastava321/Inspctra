@@ -8,12 +8,14 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 from qa_ai.ai.model_profiles import (
+    CLOUD_PROVIDER_NAMES,
     ProviderKind,
     RoutingComponent,
     get_component_profiles,
     get_model_catalog,
+    get_preferred_cloud_model_ids,
 )
-from qa_ai.config.settings import Settings, get_settings
+from qa_ai.config.settings import Settings, cloud_provider_keys, get_settings
 
 
 @dataclass
@@ -34,6 +36,7 @@ class ModelRoutingPolicy:
         self.settings = settings or get_settings()
         self.catalog = get_model_catalog()
         self.profiles = get_component_profiles()
+        self.preferred_cloud = get_preferred_cloud_model_ids()
 
     def decide(
         self,
@@ -61,12 +64,14 @@ class ModelRoutingPolicy:
         cloud_allowed = self._cloud_allowed(private_mode=private_mode)
         redact = bool(private_mode and self.settings.redact_cloud_context)
 
+        configured_cloud = cloud_provider_keys(self.settings)
+
         if cloud_circuit_open:
             cloud_allowed = False
             cloud_reason = "cloud_circuit_breaker_open"
-        elif not self.settings.openrouter_api_key:
+        elif not configured_cloud:
             cloud_allowed = False
-            cloud_reason = "missing_openrouter_api_key"
+            cloud_reason = "missing_cloud_api_key"
         elif not self.settings.allow_cloud_models:
             cloud_allowed = False
             cloud_reason = "cloud_models_disabled"
@@ -79,7 +84,7 @@ class ModelRoutingPolicy:
             # Visual analysis is local-first with optional cloud backup.
             local_first = self.catalog[profile.primary_model_id]
             chain.append(self._entry(local_first.model_id))
-            if self.settings.enable_visual_cloud_backup and self.settings.allow_cloud_models and self.settings.openrouter_api_key:
+            if self.settings.enable_visual_cloud_backup and self.settings.allow_cloud_models and "openrouter" in configured_cloud:
                 backup = self.catalog[profile.fallback_model_ids[0]]
                 chain.append(self._entry(backup.model_id))
             return RoutingDecision(
@@ -93,19 +98,31 @@ class ModelRoutingPolicy:
             )
 
         if cloud_allowed and self.settings.model_routing_mode == "specialist_cloud_first":
-            primary = self.catalog[profile.primary_model_id]
-            chain.append(self._entry(primary.model_id))
-            for fallback in profile.fallback_model_ids:
-                chain.append(self._entry(fallback))
-            return RoutingDecision(
-                component=component.value,
-                selected_model=primary.model_name,
-                selected_provider=primary.provider.value,
-                fallback_chain=chain,
-                privacy_decision="redacted_cloud_context" if redact else "standard",
-                reason="cloud_first_specialist",
-                redact_for_cloud=redact,
-            )
+            # Configured premium providers first, then the component's own models. Cloud entries whose
+            # provider has no key are dropped so a request never waits on a call that cannot succeed.
+            candidate_ids = [
+                *self.preferred_cloud.get(component, []),
+                profile.primary_model_id,
+                *profile.fallback_model_ids,
+            ]
+            seen: set[str] = set()
+            for model_id in candidate_ids:
+                entry_provider = self.catalog[model_id].provider.value
+                if model_id in seen or (entry_provider in CLOUD_PROVIDER_NAMES and entry_provider not in configured_cloud):
+                    continue
+                seen.add(model_id)
+                chain.append(self._entry(model_id))
+            if chain:
+                selected = chain[0]
+                return RoutingDecision(
+                    component=component.value,
+                    selected_model=selected["model"],
+                    selected_provider=selected["provider"],
+                    fallback_chain=chain,
+                    privacy_decision="redacted_cloud_context" if redact else "standard",
+                    reason="cloud_first_specialist",
+                    redact_for_cloud=redact,
+                )
 
         # Local-first fallback path.
         local_fallback = self.catalog[profile.fallback_model_ids[0]] if profile.fallback_model_ids else None
@@ -135,8 +152,14 @@ class ModelRoutingPolicy:
 
     def _entry(self, model_id: str) -> Dict[str, str]:
         model = self.catalog[model_id]
+        name = model.model_name
+        # The default Gemini/Groq models can be overridden without touching the catalog.
+        if model.provider == ProviderKind.GEMINI:
+            name = self.settings.gemini_model or name
+        elif model.provider == ProviderKind.GROQ:
+            name = self.settings.groq_model or name
         return {
             "provider": model.provider.value,
-            "model": model.model_name,
+            "model": name,
             "model_id": model.model_id,
         }

@@ -22,8 +22,15 @@ class RoutingComponent(str, Enum):
 
 class ProviderKind(str, Enum):
     OPENROUTER = "openrouter"
+    GEMINI = "gemini"
+    GROQ = "groq"
     OLLAMA = "ollama"
     DETERMINISTIC = "deterministic"
+
+
+# Providers that send prompts off the machine (everything except Ollama and the deterministic fallback).
+CLOUD_PROVIDER_KINDS = frozenset({ProviderKind.OPENROUTER, ProviderKind.GEMINI, ProviderKind.GROQ})
+CLOUD_PROVIDER_NAMES = frozenset(kind.value for kind in CLOUD_PROVIDER_KINDS)
 
 
 class ModelPrivacyClass(str, Enum):
@@ -84,6 +91,22 @@ def get_model_catalog() -> Dict[str, ModelDefinition]:
             capabilities={"report", "visual"},
             privacy_class=ModelPrivacyClass.CLOUD_ALLOWED,
         ),
+        # Optional direct providers. Used only when the user has configured a key and opted in to cloud
+        # models; the model names here are defaults that QA_AI_GEMINI_MODEL / QA_AI_GROQ_MODEL override.
+        "gemini:gemini-2.5-pro": ModelDefinition(
+            model_id="gemini:gemini-2.5-pro",
+            provider=ProviderKind.GEMINI,
+            model_name="gemini-2.5-pro",
+            capabilities={"orchestration", "repo_reasoning", "long_reasoning", "tool_json", "report"},
+            privacy_class=ModelPrivacyClass.CLOUD_ALLOWED,
+        ),
+        "groq:llama-3.3-70b-versatile": ModelDefinition(
+            model_id="groq:llama-3.3-70b-versatile",
+            provider=ProviderKind.GROQ,
+            model_name="llama-3.3-70b-versatile",
+            capabilities={"orchestration", "repo_reasoning", "tool_json", "report"},
+            privacy_class=ModelPrivacyClass.CLOUD_ALLOWED,
+        ),
         "ollama:qwen3.5:9b": ModelDefinition(
             model_id="ollama:qwen3.5:9b",
             provider=ProviderKind.OLLAMA,
@@ -119,6 +142,22 @@ def get_model_catalog() -> Dict[str, ModelDefinition]:
             capabilities={"embedding"},
             privacy_class=ModelPrivacyClass.LOCAL_ONLY,
         ),
+    }
+
+
+# Tried before a component's own cloud models when the provider is configured: the strongest
+# reasoner first for hard reasoning, the fastest first for report synthesis.
+_REASONING_FIRST = ["gemini:gemini-2.5-pro", "groq:llama-3.3-70b-versatile"]
+_SPEED_FIRST = ["groq:llama-3.3-70b-versatile", "gemini:gemini-2.5-pro"]
+
+
+def get_preferred_cloud_model_ids() -> Dict[RoutingComponent, List[str]]:
+    return {
+        RoutingComponent.MASTER_ORCHESTRATION: list(_REASONING_FIRST),
+        RoutingComponent.HUGE_REPO_REASONING: list(_REASONING_FIRST),
+        RoutingComponent.STRUCTURED_REASONING: list(_REASONING_FIRST),
+        RoutingComponent.LONG_STRATEGY: list(_REASONING_FIRST),
+        RoutingComponent.REPORT_SYNTHESIS: list(_SPEED_FIRST),
     }
 
 

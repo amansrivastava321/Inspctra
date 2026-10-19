@@ -34,6 +34,15 @@ def _float_env(key: str, default: float) -> float:
         return default
 
 
+def _first_env(*keys: str) -> str:
+    """First non-empty value among several accepted environment variable names."""
+    for key in keys:
+        value = os.environ.get(key, "").strip()
+        if value:
+            return value
+    return ""
+
+
 def _bool_env(key: str, default: bool) -> bool:
     raw = os.environ.get(key, "").lower()
     if raw in ("1", "true", "yes"):
@@ -83,6 +92,38 @@ class Settings:
     )
     openrouter_long_timeout_seconds: int = field(
         default_factory=lambda: _int_env("QA_AI_OPENROUTER_LONG_TIMEOUT_SECONDS", 180)
+    )
+
+    # Gemini (Google AI Studio, OpenAI-compatible endpoint). Optional; only used when cloud
+    # models are enabled. QA_AI_GEMINI_API_KEY, GEMINI_API_KEY or GOOGLE_API_KEY.
+    gemini_api_key: str = field(
+        default_factory=lambda: _first_env("QA_AI_GEMINI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY")
+    )
+    gemini_base_url: str = field(
+        default_factory=lambda: os.environ.get(
+            "QA_AI_GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"
+        )
+    )
+    gemini_model: str = field(
+        default_factory=lambda: os.environ.get("QA_AI_GEMINI_MODEL", "gemini-2.5-pro")
+    )
+    # Thinking models are slow; allow a longer timeout than the other providers.
+    gemini_timeout_seconds: int = field(
+        default_factory=lambda: _int_env("QA_AI_GEMINI_TIMEOUT_SECONDS", 120)
+    )
+
+    # Groq (Llama on LPUs, OpenAI-compatible endpoint). QA_AI_GROQ_API_KEY or GROQ_API_KEY.
+    groq_api_key: str = field(
+        default_factory=lambda: _first_env("QA_AI_GROQ_API_KEY", "GROQ_API_KEY")
+    )
+    groq_base_url: str = field(
+        default_factory=lambda: os.environ.get("QA_AI_GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+    )
+    groq_model: str = field(
+        default_factory=lambda: os.environ.get("QA_AI_GROQ_MODEL", "llama-3.3-70b-versatile")
+    )
+    groq_timeout_seconds: int = field(
+        default_factory=lambda: _int_env("QA_AI_GROQ_TIMEOUT_SECONDS", 45)
     )
 
     # Corpus integration
@@ -155,6 +196,16 @@ class Settings:
     log_level: str = field(
         default_factory=lambda: os.environ.get("QA_AI_LOG_LEVEL", "INFO")
     )
+
+
+def cloud_provider_keys(settings: Settings) -> dict[str, str]:
+    """Cloud providers that have an API key configured, name -> key (never log the values)."""
+    keys = {
+        "openrouter": settings.openrouter_api_key,
+        "gemini": settings.gemini_api_key,
+        "groq": settings.groq_api_key,
+    }
+    return {name: key for name, key in keys.items() if key}
 
 
 @lru_cache(maxsize=1)

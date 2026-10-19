@@ -95,7 +95,7 @@ class AIReasoningOrchestrator:
     def _detect_model_availability(self) -> bool:
         try:
             doctor = ModelRouter(artifact_store=self.store).doctor()
-            if doctor.get("openrouter_configured") and doctor.get("allow_cloud_models"):
+            if doctor.get("cloud_configured") and doctor.get("allow_cloud_models"):
                 return True
         except Exception as e:
             logger.debug("ModelRouter doctor check failed: %s", e)
