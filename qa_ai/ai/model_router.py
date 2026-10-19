@@ -14,6 +14,7 @@ from qa_ai.ai.model_routing_policy import ModelRoutingPolicy
 from qa_ai.ai.model_usage_logger import ModelUsageLogger
 from qa_ai.ai.ollama_client import OllamaClient
 from qa_ai.ai.openrouter_client import OpenRouterClient
+from qa_ai.ai.prompt_safety import redact_secrets
 from qa_ai.config.settings import Settings, cloud_provider_keys, get_settings
 from qa_ai.runtime.artifact_store import ArtifactStore
 
@@ -267,9 +268,11 @@ class ModelRouter:
         }
 
     def _cloud_prompt(self, prompt: str, context: Dict[str, Any], redact: bool) -> str:
+        """Prompt text for cloud providers. Credentials are stripped in every case, since this
+        text leaves the machine; ``redact`` additionally withholds the prompt body (private mode)."""
         if not redact:
-            return prompt
+            return redact_secrets(prompt)
         graphify_summary = str(context.get("graphify_summary") or "")
         if graphify_summary:
-            return f"REDACTED_CONTEXT_ONLY\n{graphify_summary}"
+            return f"REDACTED_CONTEXT_ONLY\n{redact_secrets(graphify_summary)}"
         return "REDACTED_CONTEXT_ONLY"

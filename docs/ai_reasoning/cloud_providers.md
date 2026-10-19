@@ -48,10 +48,14 @@ evidence you are allowed to share.
 - **Private-code mode** (`QA_AI_PRIVATE_CODE_MODE=true`, or code the audit marks private): only a
   redacted summary is sent to cloud providers, never the raw prompt (on by default; controlled by
   `QA_AI_REDACT_CLOUD_CONTEXT`).
-- **With private-code mode off**, the prompt is sent as built. The AI features that draft test plans,
-  suggest root causes and evaluate evidence pass their prompts through `make_safe` first, which
-  replaces API keys (including Google `AIza…` and Groq `gsk_…` formats), bearer tokens, JWTs, private
-  key blocks and database URLs with placeholders. The router itself does not add that step.
+- **Credentials are always stripped.** Every prompt the router sends to a cloud provider (OpenRouter,
+  Gemini or Groq) first goes through `redact_secrets`, which replaces API keys (including Google
+  `AIza…` and Groq `gsk_…` formats), bearer tokens, JWTs, private key blocks, database URLs with
+  credentials and `password=` values with placeholders. It changes nothing else: no truncation, no
+  blocking, and commit hashes and digests are left alone. Local (Ollama) prompts are not redacted.
+- **With private-code mode off**, everything else in the prompt is sent as the calling feature built
+  it. Redaction recognises known credential formats, so it is a safety net and not a guarantee: an
+  unusual secret format, or proprietary code, would still be sent.
 - Embeddings and visual analysis never go to cloud providers.
 - Free tiers can have different data-use terms from paid tiers. Read the provider's terms before
   sending client or proprietary code.
