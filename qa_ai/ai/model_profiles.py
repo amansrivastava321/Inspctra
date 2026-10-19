@@ -100,6 +100,15 @@ def get_model_catalog() -> Dict[str, ModelDefinition]:
             capabilities={"orchestration", "repo_reasoning", "long_reasoning", "tool_json", "report"},
             privacy_class=ModelPrivacyClass.CLOUD_ALLOWED,
         ),
+        # Lighter, separately-capacity-limited Gemini model tried after the primary when Google reports the
+        # primary overloaded (503). QA_AI_GEMINI_FALLBACK_MODEL overrides the name.
+        "gemini:gemini-3.5-flash-lite": ModelDefinition(
+            model_id="gemini:gemini-3.5-flash-lite",
+            provider=ProviderKind.GEMINI,
+            model_name="gemini-3.5-flash-lite",
+            capabilities={"orchestration", "repo_reasoning", "tool_json", "report"},
+            privacy_class=ModelPrivacyClass.CLOUD_ALLOWED,
+        ),
         "groq:openai/gpt-oss-120b": ModelDefinition(
             model_id="groq:openai/gpt-oss-120b",
             provider=ProviderKind.GROQ,
@@ -147,8 +156,12 @@ def get_model_catalog() -> Dict[str, ModelDefinition]:
 
 # Tried before a component's own cloud models when the provider is configured: the strongest
 # reasoner first for hard reasoning, the fastest first for report synthesis.
-_REASONING_FIRST = ["gemini:gemini-3.8-flash", "groq:openai/gpt-oss-120b"]
-_SPEED_FIRST = ["groq:openai/gpt-oss-120b", "gemini:gemini-3.8-flash"]
+GEMINI_PRIMARY_ID = "gemini:gemini-3.8-flash"
+GEMINI_BACKUP_ID = "gemini:gemini-3.5-flash-lite"
+GROQ_PRIMARY_ID = "groq:openai/gpt-oss-120b"
+
+_REASONING_FIRST = [GEMINI_PRIMARY_ID, GROQ_PRIMARY_ID, GEMINI_BACKUP_ID]
+_SPEED_FIRST = [GROQ_PRIMARY_ID, GEMINI_PRIMARY_ID, GEMINI_BACKUP_ID]
 
 
 def get_preferred_cloud_model_ids() -> Dict[RoutingComponent, List[str]]:

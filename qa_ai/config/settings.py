@@ -113,6 +113,10 @@ class Settings:
         default_factory=lambda: os.environ.get("QA_AI_GEMINI_MODEL", "gemini-3.8-flash")
     )
     # Thinking models are slow; allow a longer timeout than the other providers.
+    # Tried after the primary Gemini model when it is overloaded (503); see model_profiles.
+    gemini_fallback_model: str = field(
+        default_factory=lambda: os.environ.get("QA_AI_GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
+    )
     gemini_timeout_seconds: int = field(
         default_factory=lambda: _int_env("QA_AI_GEMINI_TIMEOUT_SECONDS", 120)
     )

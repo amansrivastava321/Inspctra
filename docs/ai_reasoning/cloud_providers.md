@@ -40,7 +40,7 @@ Cloud use needs **all three** of these. Missing any one keeps everything local:
 |---|---|
 | Gemini key | `QA_AI_GEMINI_API_KEY`, `GEMINI_API_KEY`, or `GOOGLE_API_KEY` |
 | Groq key | `QA_AI_GROQ_API_KEY` or `GROQ_API_KEY` |
-| Model override | `QA_AI_GEMINI_MODEL`, `QA_AI_GROQ_MODEL` |
+| Model override | `QA_AI_GEMINI_MODEL`, `QA_AI_GROQ_MODEL`, `QA_AI_GEMINI_FALLBACK_MODEL` (backup Gemini model, default `gemini-3.5-flash-lite`) |
 | Endpoint override | `QA_AI_GEMINI_BASE_URL`, `QA_AI_GROQ_BASE_URL` (any OpenAI-compatible `/chat/completions` API) |
 | Timeout (seconds) | `QA_AI_GEMINI_TIMEOUT_SECONDS` (default 120), `QA_AI_GROQ_TIMEOUT_SECONDS` (default 45) |
 
@@ -69,11 +69,13 @@ Providers that have a key are tried in this order, then any configured OpenRoute
 local model, then the deterministic fallback:
 
 - Reasoning-heavy components (orchestration, repo reasoning, structured reasoning, long strategy):
-  Gemini, then Groq.
-- Report synthesis: Groq, then Gemini (speed first).
+  Gemini (`gemini-3.8-flash`), then Groq, then the lighter Gemini backup (`gemini-3.5-flash-lite`).
+- Report synthesis: Groq, then Gemini, then the Gemini backup (speed first).
 - Embeddings and visual analysis never use these providers.
 
-If a provider is rate limited, down or returns something unusable, the next one is tried.
+If a provider is rate limited, down or returns something unusable, the next one is tried. The Gemini
+backup exists because a busy Gemini model answers 503 "high demand" while a lighter one often still
+answers; it uses a separate model name, so set `QA_AI_GEMINI_FALLBACK_MODEL` if it is retired.
 
 ## Privacy
 
