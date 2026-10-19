@@ -20,6 +20,13 @@ from typing import List, Optional
 
 # ── Redaction patterns ─────────────────────────────────────────────────────────
 
+# Generic high-entropy 40+ char tokens (base64-ish). Catches unknown secret formats but also
+# commit hashes and digests, so redact_secrets() leaves it out.
+_GENERIC_TOKEN_PATTERN = (
+    re.compile(r"(?<![A-Za-z0-9/+])([A-Za-z0-9+/]{40,}={0,2})(?![A-Za-z0-9/+])"),
+    "[REDACTED_TOKEN]",
+)
+
 _PATTERNS = [
     # API key patterns
     (re.compile(r"sk-[A-Za-z0-9\-_]{20,}", re.I), "[REDACTED_API_KEY]"),
@@ -39,9 +46,7 @@ _PATTERNS = [
         r"(postgres|postgresql|mysql|mariadb|mongodb|redis)://[^:@\s]+:[^@\s]+@[^\s]+",
         re.I),
      r"\1://[REDACTED_CREDENTIALS]@[REDACTED_HOST]"),
-    # Generic high-entropy 40+ char tokens (base64-ish)
-    (re.compile(r"(?<![A-Za-z0-9/+])([A-Za-z0-9+/]{40,}={0,2})(?![A-Za-z0-9/+])"),
-     "[REDACTED_TOKEN]"),
+    _GENERIC_TOKEN_PATTERN,
     # Private key headers
     (re.compile(r"-----BEGIN\s+[A-Z ]+PRIVATE KEY-----.*?-----END\s+[A-Z ]+PRIVATE KEY-----",
                 re.DOTALL | re.I),
@@ -144,6 +149,22 @@ def make_safe(
         original_length=original_length,
         safe_length=len(safe),
     )
+
+
+_CREDENTIAL_PATTERNS = [p for p in _PATTERNS if p is not _GENERIC_TOKEN_PATTERN]
+
+
+def redact_secrets(text: str) -> str:
+    """
+    Replace recognisable credentials (API keys, bearer tokens, JWTs, credentialed DB URLs,
+    private keys, hardcoded passwords) and nothing else.
+
+    Unlike make_safe() this never truncates, blocks, or strips generic long tokens, so it is
+    safe to run on every prompt that leaves the machine without changing what the model is asked.
+    """
+    for pattern, replacement in _CREDENTIAL_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
 
 
 def redact_for_logging(text: str, max_length: int = 200) -> str:
