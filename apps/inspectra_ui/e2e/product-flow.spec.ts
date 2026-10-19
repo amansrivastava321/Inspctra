@@ -99,7 +99,8 @@ test('02 - create project navigates to add app', async ({ page }) => {
   await navTo(page, '/projects');
   // Header "Connect app" button is always visible regardless of empty state.
   // "Connect first app" is a separate empty-state-only button — use exact match to avoid strict-mode error.
-  const connectBtn = page.getByRole('button', { name: /^connect app$/i });
+  // The sidebar also has a "Connect App" nav item, so scope the lookup to the page content.
+  const connectBtn = page.getByRole('main').getByRole('button', { name: /^connect app$/i });
   await expect(connectBtn).toBeVisible();
   await connectBtn.click();
   await expect(page).toHaveURL(/\/projects\/new/);
@@ -313,7 +314,8 @@ test('11f - completed run allows AI evidence evaluation without changing verdict
     resp.url().includes(`/api/runs/${run.id}/evaluate-ai`) && resp.request().method() === 'POST',
     { timeout: 30_000 }
   );
-  await evalBtn.click({ force: true });
+  // No `force`: a real user must be able to click it (it was once covered by the run diagram).
+  await evalBtn.click();
   await evalReqPromise;
   const evalResp = await evalRespPromise;
   expect(evalResp.status()).toBe(201);

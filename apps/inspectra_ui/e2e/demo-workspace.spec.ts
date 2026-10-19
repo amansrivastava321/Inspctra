@@ -22,18 +22,19 @@ test('offline real workspace can enter and leave an isolated read-only demo', as
   await expect(page).toHaveURL(/\/demo$/);
   await expect(page.getByText(DEMO_MESSAGE)).toBeVisible();
   await expect(page.getByText('FlowBook').first()).toBeVisible();
-  await expect(page.locator('[data-provenance-source="Dashboard health"]')).toHaveText('Demo');
-  await expect(page.locator('[data-provenance-source="Dashboard metric"]')).toHaveCount(4);
+  await expect(page.locator('[data-provenance-source="Dashboard summary"]')).toHaveText('Demo');
+  await expect(page.locator('[data-provenance-source="Dashboard failed run"]')).toHaveText('Demo');
+  await expect(page.locator('[data-provenance-source="Dashboard failure reason"]')).toHaveCount(3);
 
-  const startRun = page.getByRole('button', { name: /start live test/i });
-  await expect(startRun).toBeDisabled();
-  await expect(startRun).toHaveAttribute('title', READ_ONLY_TOOLTIP);
+  const newPack = page.getByRole('button', { name: /^new pack$/i });
+  await expect(newPack).toBeDisabled();
+  await expect(newPack).toHaveAttribute('title', READ_ONLY_TOOLTIP);
 
   await page.getByRole('button', { name: /^projects$/i }).click();
   await expect(page).toHaveURL(/\/demo\/projects$/);
   await expect(page.getByText(DEMO_MESSAGE)).toBeVisible();
 
-  const connectApp = page.getByRole('button', { name: /^connect app$/i });
+  const connectApp = page.getByRole('main').getByRole('button', { name: /^connect app$/i });
   await expect(connectApp).toBeDisabled();
   await expect(connectApp).toHaveAttribute('title', READ_ONLY_TOOLTIP);
   await expect(page.locator('[data-provenance-source="App card"]')).toHaveCount(4);
@@ -72,8 +73,8 @@ test('direct demo navigation performs no backend requests', async ({ page }) => 
   await expect(exportReport).toHaveAttribute('title', READ_ONLY_TOOLTIP);
 
   await page.goto('/demo');
-  await page.getByText('Mobile testing requires Appium').last().click();
-  await expect(page).toHaveURL(/\/demo\/doctor$/);
+  await page.getByRole('navigation', { name: /primary navigation/i }).getByRole('button', { name: /runtime doctor/i }).click();
+  await expect(page).toHaveURL(/\/demo\/runtime-doctor$/);
   await expect(page.locator('[data-provenance-source="Runtime Doctor detail"]')).toHaveText('Demo');
   await expect(page.locator('[data-provenance-source="Runtime Doctor component"]')).toHaveCount(8);
 
