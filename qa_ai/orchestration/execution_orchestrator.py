@@ -17,7 +17,7 @@ from qa_ai.runtime.artifact_store import ArtifactStore
 from qa_ai.runtime.execution_context import Platform
 from qa_ai.runners.base_runner import BaseRunner
 from qa_ai.runners.api_runner import APIRunner
-from qa_ai.schemas.execution_result_schema import ExecutionResult
+from qa_ai.schemas.execution_result_schema import ExecutionResult, is_target_unreachable
 from qa_ai.schemas.finding_schema import (
     Finding,
     FindingSet,
@@ -246,8 +246,12 @@ class ExecutionOrchestrator:
                 test_lookup[tc.get("id", "")] = tc
 
         counter = 0
+        unreachable = 0
         for suite in result.suites:
             for test_result in suite.tests:
+                if is_target_unreachable(test_result.outcome, test_result.metadata):
+                    unreachable += 1
+                    continue
                 if test_result.outcome in (TestOutcome.FAILED, TestOutcome.ERROR):
                     counter += 1
                     test_case = test_lookup.get(test_result.test_id, {})
@@ -278,6 +282,12 @@ class ExecutionOrchestrator:
                         tags=test_case.get("tags", []),
                         metadata=test_result.metadata,
                     ))
+
+        if unreachable:
+            result.environment_issues.append(
+                f"{unreachable} runtime test(s) could not run because the target app was not reachable; "
+                "start it (or pass --app-url) to verify runtime behaviour. No findings were raised for them."
+            )
 
         return FindingSet(findings=findings)
 
