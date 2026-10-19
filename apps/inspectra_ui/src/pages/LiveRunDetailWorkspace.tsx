@@ -495,14 +495,15 @@ export default function LiveRunDetailWorkspace() {
     }
   }, [run, isManual, selectedStep, hasAutoSelected, displayedSteps]);
 
+  // Default to the first failed step. Decide from the *current* selection (functional update), not the
+  // value captured when this effect was scheduled: a step clicked in between must not be overwritten.
   useEffect(() => {
-    if (run && !isManual && !selectedStep && displayedSteps.length > 0) {
-      setSelectedStep(
-        displayedSteps.find((step) => step.status === 'failed' || step.status === 'error')
-        || displayedSteps[0],
-      );
+    if (run && !isManual && displayedSteps.length > 0) {
+      const defaultStep = displayedSteps.find((step) => step.status === 'failed' || step.status === 'error')
+        || displayedSteps[0];
+      setSelectedStep((current) => current ?? defaultStep);
     }
-  }, [run, isManual, selectedStep, displayedSteps]);
+  }, [run, isManual, displayedSteps]);
 
   // Sync form inputs when selectedStep changes
   useEffect(() => {

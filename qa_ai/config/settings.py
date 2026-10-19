@@ -9,7 +9,12 @@ import os
 from dataclasses import dataclass, field
 from functools import lru_cache
 
+from qa_ai.config.dotenv_loader import load_project_dotenv
+
 logger = logging.getLogger(__name__)
+
+# Settings read os.environ when constructed, so load the optional project .env first.
+load_project_dotenv()
 
 
 def _int_env(key: str, default: int) -> int:

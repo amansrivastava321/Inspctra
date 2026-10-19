@@ -25,8 +25,24 @@ Cloud use needs **all three** of these. Missing any one keeps everything local:
 | Endpoint override | `QA_AI_GEMINI_BASE_URL`, `QA_AI_GROQ_BASE_URL` (any OpenAI-compatible `/chat/completions` API) |
 | Timeout (seconds) | `QA_AI_GEMINI_TIMEOUT_SECONDS` (default 120), `QA_AI_GROQ_TIMEOUT_SECONDS` (default 45) |
 
-Keep keys in environment variables or an untracked `.env` file (`.env` is gitignored). Never commit
-them and never paste them into chats, issues or logs. Key values are never written to reports.
+### Where to put the keys
+
+Either set them as environment variables in the shell that starts the backend, or use a `.env` file:
+
+```bash
+cp .env.example .env      # then edit .env and fill in the values you need
+```
+
+- `.env` lives in the project root, is gitignored and is never committed. `.env.example` is the
+  committed template and must stay free of real values.
+- Variables already set in your shell win over `.env`.
+- Only `QA_AI_*`, `INSPECTRA_*`, `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GROQ_API_KEY` and
+  `OPENROUTER_API_KEY` are read from the file. Only the project root is searched, never the current
+  directory, so auditing another app does not pick up that app's `.env`.
+- Set `INSPECTRA_DISABLE_DOTENV=1` to ignore the file.
+
+Never commit keys and never paste them into chats, issues or logs. Key values are never written to
+reports.
 
 ## How requests are routed
 

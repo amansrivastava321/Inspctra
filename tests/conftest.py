@@ -4,6 +4,9 @@ conftest.py - Shared test fixtures for the QA platform test suite.
 
 import os
 
+# A developer's local .env must never change test behaviour (set before qa_ai is imported).
+os.environ.setdefault("INSPECTRA_DISABLE_DOTENV", "1")
+
 import pytest
 from pathlib import Path
 import tempfile
