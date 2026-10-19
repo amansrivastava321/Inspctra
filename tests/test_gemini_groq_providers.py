@@ -78,27 +78,47 @@ def test_gemini_is_tried_first_for_reasoning_when_configured() -> None:
     reason, chain = _chain(_settings(**CLOUD_ON, gemini_api_key="k"))
 
     assert reason == "cloud_first_specialist"
-    assert chain == ["gemini:gemini-3.8-flash", "ollama:qwen3.5:9b"]
+    assert chain == ["gemini:gemini-3.8-flash", "gemini:gemini-3.5-flash-lite", "ollama:qwen3.5:9b"]
 
 
 def test_every_configured_provider_appears_in_preference_order() -> None:
     _, chain = _chain(_settings(**CLOUD_ON, gemini_api_key="g", groq_api_key="q", openrouter_api_key="o"))
 
     assert chain == [
-        "gemini:gemini-3.8-flash", "groq:openai/gpt-oss-120b", "openrouter:openai/gpt-oss-120b:free", "ollama:qwen3.5:9b",
+        "gemini:gemini-3.8-flash", "groq:openai/gpt-oss-120b", "gemini:gemini-3.5-flash-lite",
+        "openrouter:openai/gpt-oss-120b:free", "ollama:qwen3.5:9b",
     ]
 
 
 def test_groq_leads_for_report_synthesis_where_speed_matters() -> None:
     _, chain = _chain(_settings(**CLOUD_ON, gemini_api_key="g", groq_api_key="q"), RoutingComponent.REPORT_SYNTHESIS)
 
-    assert chain[:2] == ["groq:openai/gpt-oss-120b", "gemini:gemini-3.8-flash"]
+    assert chain[:3] == ["groq:openai/gpt-oss-120b", "gemini:gemini-3.8-flash", "gemini:gemini-3.5-flash-lite"]
 
 
 def test_model_names_can_be_overridden() -> None:
     _, chain = _chain(_settings(**CLOUD_ON, gemini_api_key="g", gemini_model="gemini-2.5-flash"))
 
     assert chain[0] == "gemini:gemini-2.5-flash"
+    assert chain[1] == "gemini:gemini-3.5-flash-lite"  # the primary override must not rewrite the backup
+
+
+def test_gemini_backup_model_can_be_overridden_separately() -> None:
+    _, chain = _chain(_settings(**CLOUD_ON, gemini_api_key="g", gemini_fallback_model="gemini-9-flash-lite"))
+
+    assert chain[:2] == ["gemini:gemini-3.8-flash", "gemini:gemini-9-flash-lite"]
+
+
+def test_a_backup_identical_to_the_primary_is_called_only_once() -> None:
+    _, chain = _chain(_settings(**CLOUD_ON, gemini_api_key="g", gemini_model="gemini-3.5-flash-lite"))
+
+    assert chain == ["gemini:gemini-3.5-flash-lite", "ollama:qwen3.5:9b"]
+
+
+def test_groq_only_setups_get_no_gemini_entries() -> None:
+    _, chain = _chain(_settings(**CLOUD_ON, groq_api_key="q"))
+
+    assert chain == ["groq:openai/gpt-oss-120b", "ollama:qwen3.5:9b"]
 
 
 @pytest.mark.parametrize(("overrides", "reason"), [
@@ -137,6 +157,19 @@ class _Cloud:
         return self._result(model, prompt)
 
 
+class _ModelAware(_Cloud):
+    """Fails for the named models and succeeds for the rest (e.g. one overloaded Gemini model)."""
+
+    def __init__(self, provider: str, failing_models: set[str]) -> None:
+        super().__init__(provider)
+        self.failing_models, self.models = failing_models, []
+
+    def _result(self, model: str, prompt: str) -> OpenRouterResult:
+        self.models.append(model)
+        self.succeed = model not in self.failing_models
+        return super()._result(model, prompt)
+
+
 class _Local:
     def chat(self, model, prompt, system=None, temperature=0.2):
         return "local"
@@ -168,7 +201,30 @@ def test_router_falls_back_from_gemini_to_groq_then_local() -> None:
 
     result = router.route(RoutingComponent.STRUCTURED_REASONING, "question", {})
 
-    assert (result.provider, len(gemini.prompts), len(groq.prompts)) == ("ollama", 1, 1)
+    # Gemini is tried twice: the primary model, then the lighter backup after Groq also failed.
+    assert (result.provider, len(gemini.prompts), len(groq.prompts)) == ("ollama", 2, 1)
+
+
+def test_overloaded_gemini_primary_falls_to_groq_without_trying_the_backup() -> None:
+    gemini = _ModelAware("gemini", failing_models={"gemini-3.8-flash"})
+    groq = _Cloud("groq")
+    router = _router(_settings(**CLOUD_ON, gemini_api_key="g", groq_api_key="q"), gemini=gemini, groq=groq)
+
+    result = router.route(RoutingComponent.STRUCTURED_REASONING, "question", {})
+
+    assert (result.provider, result.model) == ("groq", "openai/gpt-oss-120b")
+    assert gemini.models == ["gemini-3.8-flash"]
+
+
+def test_gemini_backup_model_answers_when_primary_and_groq_both_fail() -> None:
+    gemini = _ModelAware("gemini", failing_models={"gemini-3.8-flash"})
+    groq = _Cloud("groq", succeed=False)
+    router = _router(_settings(**CLOUD_ON, gemini_api_key="g", groq_api_key="q"), gemini=gemini, groq=groq)
+
+    result = router.route(RoutingComponent.STRUCTURED_REASONING, "question", {})
+
+    assert (result.success, result.provider, result.model) == (True, "gemini", "gemini-3.5-flash-lite")
+    assert gemini.models == ["gemini-3.8-flash", "gemini-3.5-flash-lite"]
 
 
 def test_private_code_is_redacted_before_it_reaches_gemini_or_groq() -> None:

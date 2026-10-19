@@ -9,7 +9,9 @@ from typing import Any, Dict, List
 
 from qa_ai.ai.model_profiles import (
     CLOUD_PROVIDER_NAMES,
-    ProviderKind,
+    GEMINI_BACKUP_ID,
+    GEMINI_PRIMARY_ID,
+    GROQ_PRIMARY_ID,
     RoutingComponent,
     get_component_profiles,
     get_model_catalog,
@@ -106,12 +108,19 @@ class ModelRoutingPolicy:
                 *profile.fallback_model_ids,
             ]
             seen: set[str] = set()
+            seen_calls: set[tuple[str, str]] = set()
             for model_id in candidate_ids:
                 entry_provider = self.catalog[model_id].provider.value
                 if model_id in seen or (entry_provider in CLOUD_PROVIDER_NAMES and entry_provider not in configured_cloud):
                     continue
                 seen.add(model_id)
-                chain.append(self._entry(model_id))
+                entry = self._entry(model_id)
+                # Overrides can make two entries resolve to the same provider and model: call it once.
+                call = (entry["provider"], entry["model"])
+                if call in seen_calls:
+                    continue
+                seen_calls.add(call)
+                chain.append(entry)
             if chain:
                 selected = chain[0]
                 return RoutingDecision(
@@ -153,10 +162,13 @@ class ModelRoutingPolicy:
     def _entry(self, model_id: str) -> Dict[str, str]:
         model = self.catalog[model_id]
         name = model.model_name
-        # The default Gemini/Groq models can be overridden without touching the catalog.
-        if model.provider == ProviderKind.GEMINI:
+        # The default Gemini/Groq models can be overridden without touching the catalog. Each override
+        # applies to its own catalog entry only, so the Gemini backup is not rewritten to the primary.
+        if model.model_id == GEMINI_PRIMARY_ID:
             name = self.settings.gemini_model or name
-        elif model.provider == ProviderKind.GROQ:
+        elif model.model_id == GEMINI_BACKUP_ID:
+            name = self.settings.gemini_fallback_model or name
+        elif model.model_id == GROQ_PRIMARY_ID:
             name = self.settings.groq_model or name
         return {
             "provider": model.provider.value,
