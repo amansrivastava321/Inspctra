@@ -118,6 +118,10 @@ describe('LiveRunDetailPage — Manual Execution', () => {
       expect(screen.getAllByText(/Smoke Pack/i).length).toBeGreaterThan(0);
     });
 
+    // The first step is auto-selected in an effect after the run loads, so the workspace
+    // (and its verdict buttons) render one tick after the header. Wait for it explicitly.
+    await screen.findByRole('button', { name: /Pass/i });
+
     // Check timeline shows both steps (appear in timeline + workspace)
     expect(screen.getAllByText(/Step 1: Navigate to homepage/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Step 2: Click submit/i)).toBeInTheDocument();

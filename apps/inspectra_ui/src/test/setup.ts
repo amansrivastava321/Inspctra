@@ -1,5 +1,10 @@
 /// <reference types="vitest/globals" />
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
+
+// Async queries (findBy*, waitFor) default to 1s, which is too tight for large pages rendered by jsdom
+// on a loaded CI runner. Passing tests still return as soon as the element appears.
+configure({ asyncUtilTimeout: 5000 });
 
 // Mock fetch globally
 (globalThis as Record<string, unknown>).fetch = vi.fn();
