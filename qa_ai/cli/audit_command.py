@@ -1266,26 +1266,46 @@ class AuditCommand:
         spec = importlib.util.find_spec(module_name)
         return {"ok": spec is not None, "module": module_name}
 
-    def _check_graphify_outputs(self) -> Dict[str, Any]:
-        report_path = Path("graphify-out/GRAPH_REPORT.md")
-        graph_path = Path("graphify-out/graph.json")
-        graph_ok = False
+    def _check_graphify_outputs(self, root: Path | None = None) -> Dict[str, Any]:
+        """Check the optional graphify knowledge graph.
+
+        ``graphify-out/`` is generated and gitignored, so a fresh checkout has none; that is not a
+        problem. Only a graph that exists but cannot be used (corrupt JSON, or a graph without its
+        report) counts as degraded. ``state`` is one of ``absent``, ``ok``, ``incomplete``, ``corrupt``.
+        """
+        base = root or Path(".")
+        report_path = base / "graphify-out" / "GRAPH_REPORT.md"
+        graph_path = base / "graphify-out" / "graph.json"
+        report_exists = report_path.exists()
+        graph_exists = graph_path.exists()
+        graph_valid = False
         nodes = 0
         edges = 0
-        if graph_path.exists():
+        if graph_exists:
             try:
                 payload = json.loads(graph_path.read_text(encoding="utf-8"))
                 node_list = payload.get("nodes", [])
                 edge_list = payload.get("edges") or payload.get("links") or []
                 nodes = len(node_list) if isinstance(node_list, list) else 0
                 edges = len(edge_list) if isinstance(edge_list, list) else 0
-                graph_ok = True
-            except (OSError, json.JSONDecodeError):
-                graph_ok = False
+                graph_valid = True
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+                graph_valid = False
+
+        if not report_exists and not graph_exists:
+            state = "absent"
+        elif graph_exists and not graph_valid:
+            state = "corrupt"
+        elif report_exists and graph_valid:
+            state = "ok"
+        else:
+            state = "incomplete"
         return {
-            "ok": report_path.exists() and graph_ok,
-            "report_exists": report_path.exists(),
-            "graph_exists": graph_path.exists(),
+            "ok": state in {"absent", "ok"},
+            "optional": True,
+            "state": state,
+            "report_exists": report_exists,
+            "graph_exists": graph_exists,
             "nodes": nodes,
             "edges": edges,
         }
