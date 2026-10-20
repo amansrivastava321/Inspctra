@@ -4,7 +4,7 @@ model_router.py - Specialist cloud-first router with deterministic safeguards.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import time
 from typing import Any, Callable, Dict, List, Optional
@@ -28,6 +28,9 @@ class RoutedResult:
     latency_ms: float
     error_type: str = ""
     fallback_reason: str = ""
+    # Every provider tried, in order: {"provider", "model", "outcome"} where outcome is "ok" or the
+    # failure reason (never a message body). Makes "why did Groq not answer?" answerable.
+    attempts: List[Dict[str, str]] = field(default_factory=list)
 
 
 class ModelRouter:
@@ -84,6 +87,7 @@ class ModelRouter:
         local_prompt = prompt
 
         last_reason = ""
+        attempts: List[Dict[str, str]] = []
         for idx, candidate in enumerate(decision.fallback_chain):
             provider = candidate["provider"]
             model = candidate["model"]
@@ -94,6 +98,7 @@ class ModelRouter:
                     client = self.cloud_clients.get(provider)
                     if client is None:
                         last_reason = f"{provider}_not_configured"
+                        attempts.append({"provider": provider, "model": model, "outcome": last_reason})
                         continue
                     result = (
                         client.chat_json(model=model, prompt=cloud_prompt)
@@ -111,6 +116,7 @@ class ModelRouter:
                         success=result.success,
                     )
                     if result.success:
+                        attempts.append({"provider": provider, "model": model, "outcome": "ok"})
                         self.usage_logger.flush(routing_mode=self.settings.model_routing_mode)
                         return RoutedResult(
                             success=True,
@@ -118,8 +124,10 @@ class ModelRouter:
                             model=result.model,
                             provider=result.provider,
                             latency_ms=result.latency_ms,
+                            attempts=attempts,
                         )
                     last_reason = result.fallback_reason or result.error_type or "cloud_error"
+                    attempts.append({"provider": provider, "model": model, "outcome": last_reason})
                     continue
 
                 if provider == "ollama":
@@ -139,6 +147,7 @@ class ModelRouter:
                         privacy_mode=decision.privacy_decision,
                         success=True,
                     )
+                    attempts.append({"provider": provider, "model": model, "outcome": "ok"})
                     self.usage_logger.flush(routing_mode=self.settings.model_routing_mode)
                     return RoutedResult(
                         success=True,
@@ -146,9 +155,11 @@ class ModelRouter:
                         model=model,
                         provider=provider,
                         latency_ms=latency_ms,
+                        attempts=attempts,
                     )
             except Exception as exc:
                 last_reason = str(exc)
+                attempts.append({"provider": provider, "model": model, "outcome": f"error:{type(exc).__name__}"})
                 self.usage_logger.log(
                     component=component.value,
                     model=model,
@@ -182,6 +193,7 @@ class ModelRouter:
                 model="deterministic",
                 provider="deterministic",
                 latency_ms=latency_ms,
+                attempts=attempts,
             )
 
         self.usage_logger.flush(routing_mode=self.settings.model_routing_mode)
@@ -193,6 +205,7 @@ class ModelRouter:
             latency_ms=0.0,
             error_type="all_providers_failed",
             fallback_reason=last_reason or "all_providers_failed",
+            attempts=attempts,
         )
 
     def route_json(

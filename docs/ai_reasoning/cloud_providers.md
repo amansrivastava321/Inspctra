@@ -104,3 +104,18 @@ python -m qa_ai.cli models doctor
 ```
 
 Shows which providers are configured, the routing mode, and the model chosen for a sample request.
+
+### Seeing why a provider was skipped
+
+The routed result lists every provider tried, in order, with `ok` or the failure reason (for example
+`http_401`, `http_404`, `provider_unavailable`, `rate_limited`). Message text is never included.
+
+```python
+from qa_ai.ai.model_router import ModelRouter
+from qa_ai.ai.model_profiles import RoutingComponent
+
+r = ModelRouter().route(RoutingComponent.STRUCTURED_REASONING, "Reply with exactly one word: pong", {})
+print(r.provider, r.model)
+for attempt in r.attempts:
+    print(attempt)
+```

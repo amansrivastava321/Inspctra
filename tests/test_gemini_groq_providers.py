@@ -227,6 +227,53 @@ def test_gemini_backup_model_answers_when_primary_and_groq_both_fail() -> None:
     assert gemini.models == ["gemini-3.8-flash", "gemini-3.5-flash-lite"]
 
 
+def test_result_records_every_provider_tried_and_why_each_was_skipped() -> None:
+    gemini = _ModelAware("gemini", failing_models={"gemini-3.8-flash"})
+    groq = _Cloud("groq", succeed=False)
+    router = _router(_settings(**CLOUD_ON, gemini_api_key="g", groq_api_key="q"), gemini=gemini, groq=groq)
+
+    result = router.route(RoutingComponent.STRUCTURED_REASONING, "question", {})
+
+    assert result.attempts == [
+        {"provider": "gemini", "model": "gemini-3.8-flash", "outcome": "rate_limited"},
+        {"provider": "groq", "model": "openai/gpt-oss-120b", "outcome": "rate_limited"},
+        {"provider": "gemini", "model": "gemini-3.5-flash-lite", "outcome": "ok"},
+    ]
+
+
+def test_attempts_name_the_exception_type_but_never_its_message() -> None:
+    class Exploding:
+        def chat(self, model, prompt, system=None, temperature=0.1):
+            raise RuntimeError("secret detail echoed from the request")
+
+        chat_json = chat
+
+    router = _router(_settings(**CLOUD_ON, gemini_api_key="g"), gemini=Exploding())
+
+    result = router.route(RoutingComponent.STRUCTURED_REASONING, "question", {})
+
+    assert result.attempts[0] == {"provider": "gemini", "model": "gemini-3.8-flash", "outcome": "error:RuntimeError"}
+    assert "secret detail" not in str(result.attempts)
+
+
+def test_attempts_are_kept_when_the_deterministic_fallback_answers() -> None:
+    class Broken(_Local):
+        def chat(self, model, prompt, system=None, temperature=0.2):
+            raise ConnectionError("ollama is not running")
+
+    router = ModelRouter(
+        settings=_settings(**CLOUD_ON, gemini_api_key="g"),
+        ollama_client=Broken(),
+        cloud_clients={"gemini": _Cloud("gemini", succeed=False)},
+    )
+
+    result = router.route(RoutingComponent.STRUCTURED_REASONING, "q", {}, deterministic_fallback=lambda: "fallback")
+
+    assert (result.provider, result.content) == ("deterministic", "fallback")
+    assert [a["provider"] for a in result.attempts] == ["gemini", "gemini", "ollama"]
+    assert all(a["outcome"] != "ok" for a in result.attempts)
+
+
 def test_private_code_is_redacted_before_it_reaches_gemini_or_groq() -> None:
     gemini = _Cloud("gemini")
     router = _router(
