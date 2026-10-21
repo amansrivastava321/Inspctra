@@ -74,6 +74,21 @@ class ModelRouter:
         self.cloud_clients.update(cloud_clients or {})
         self.usage_logger = ModelUsageLogger(artifact_store=artifact_store)
 
+    def cloud_route_available(self, component: RoutingComponent, context: Dict[str, Any] | None = None) -> bool:
+        """True when a request for ``component`` would be answered by a cloud provider with the real prompt.
+
+        False when cloud models are off or have no key, and also when private-code mode would withhold
+        the prompt (a placeholder sent to a cloud model cannot do the job). Callers use this to skip
+        local-model readiness checks that only matter when the answer will come from the local model.
+        """
+        decision = self.policy.decide(component=component, context=context or {})
+        if decision.redact_for_cloud:
+            return False
+        return any(
+            entry["provider"] in CLOUD_PROVIDER_NAMES and entry["provider"] in self.cloud_clients
+            for entry in decision.fallback_chain
+        )
+
     def route(
         self,
         component: RoutingComponent,
