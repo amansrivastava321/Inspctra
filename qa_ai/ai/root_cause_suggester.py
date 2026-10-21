@@ -508,20 +508,29 @@ class AIRootCauseSuggester:
         prompt = self._build_prompt(context)
         safe = make_safe(prompt, private_mode=True, cloud_target=False)
         try:
-            base_url = getattr(self.router.client, "base_url", "http://127.0.0.1:11434")
-            reachable, _, reason = check_ollama_health(base_url=base_url, timeout=1.0)
-            if reachable:
-                model = self.router.model_registry[ModelCapability.QA_REASONING][0].name
-                reachable, reason = probe_ollama_chat_ready(
-                    model=model, base_url=base_url, timeout=2.0
+            context_for_route = {"contains_source_code": False}
+            # Only require a ready local model when the local model will be the one answering.
+            cloud_first = (
+                self.router.specialist_router.cloud_route_available(
+                    RoutingComponent.STRUCTURED_REASONING, context_for_route
                 )
-            if not reachable:
-                logger.info("Local RCA model unavailable; deterministic fallback selected")
-                return None
+                is True
+            )
+            if not cloud_first:
+                base_url = getattr(self.router.client, "base_url", "http://127.0.0.1:11434")
+                reachable, _, reason = check_ollama_health(base_url=base_url, timeout=1.0)
+                if reachable:
+                    model = self.router.model_registry[ModelCapability.QA_REASONING][0].name
+                    reachable, reason = probe_ollama_chat_ready(
+                        model=model, base_url=base_url, timeout=2.0
+                    )
+                if not reachable:
+                    logger.info("Local RCA model unavailable; deterministic fallback selected")
+                    return None
             result = self.router.specialist_router.route(
                 component=RoutingComponent.STRUCTURED_REASONING,
                 prompt=safe.safe_prompt,
-                context={"contains_source_code": False},
+                context=context_for_route,
                 require_json=True,
                 deterministic_fallback=None,
             )

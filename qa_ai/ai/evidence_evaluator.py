@@ -160,7 +160,13 @@ class AIEvidenceEvaluator:
         reachable = True
         error = None
         base_url = getattr(self.router.client, "base_url", "http://127.0.0.1:11434")
-        if not isinstance(route_call, Mock):
+        # The local-model readiness gate only matters when the local model will answer. When a cloud
+        # provider is configured and would receive the real prompt, do not require Ollama.
+        cloud_first = (
+            not isinstance(route_call, Mock)
+            and self.router.specialist_router.cloud_route_available(RoutingComponent.STRUCTURED_REASONING, {}) is True
+        )
+        if not isinstance(route_call, Mock) and not cloud_first:
             reachable, _, error = check_ollama_health(base_url=base_url, timeout=1.0)
             if reachable:
                 reachable, error = probe_ollama_chat_ready(
@@ -189,6 +195,10 @@ class AIEvidenceEvaluator:
                 )
                 if result.success:
                     raw_output = result.content
+                    # Report who really answered (gemini, groq, ...). The deterministic hook is the local model.
+                    provider = getattr(result, "provider", "")
+                    if isinstance(provider, str) and provider not in ("", "deterministic"):
+                        generation_source = provider
                 else:
                     logger.warning("Structured reasoning routing failed: %s. Using local fallback.", result.error_type)
                     generation_source = "local_fallback"
@@ -196,7 +206,7 @@ class AIEvidenceEvaluator:
                 logger.warning("Local model evaluator call failed: %s. Using local fallback.", exc)
                 generation_source = "local_fallback"
 
-        if generation_source == "ollama" and raw_output:
+        if generation_source != "local_fallback" and raw_output:
             parsed_dict = self.router._extract_json(raw_output)
             if not parsed_dict:
                 try:
