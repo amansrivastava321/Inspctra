@@ -347,8 +347,14 @@ class LLMRouter:
             max_output_tokens=200,
         )
 
-    def generate_test_plan(self, prompt: str) -> str:
-        """Generate structured QA test plan."""
+    def generate_test_plan(self, prompt: str, _route_info: Optional[Dict[str, str]] = None) -> str:
+        """Generate structured QA test plan.
+
+        ``_route_info``, if given, is filled with {"provider": ...} on success. It is a plain dict the
+        caller owns (never state on this router), so a caller that wants to report which provider
+        answered can do so without this method's return type changing for everyone else; a test that
+        replaces this whole method with a Mock leaves the dict untouched, as if the parameter were absent.
+        """
         result = self.specialist_router.route(
             component=RoutingComponent.MASTER_ORCHESTRATION,
             prompt=prompt,
@@ -364,6 +370,8 @@ class LLMRouter:
             ),
         )
         if result.success:
+            if _route_info is not None:
+                _route_info["provider"] = result.provider
             return result.content
         raise RuntimeError(result.error_type or result.fallback_reason or "generate_test_plan failed")
 

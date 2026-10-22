@@ -12,6 +12,7 @@ from unittest.mock import Mock
 
 from qa_ai.ai.prompt_safety import make_safe
 from qa_ai.ai.llm_router import get_router, ModelCapability
+from qa_ai.ai.model_profiles import RoutingComponent
 from qa_ai.ai.model_health import check_ollama_health, probe_ollama_chat_ready
 from qa_ai.product_backend.models import (
     AITestPlanPreview,
@@ -178,7 +179,14 @@ class AITestPlanGenerator:
         reachable = True
         error = None
         base_url = getattr(self.router.client, "base_url", "http://127.0.0.1:11434")
-        if not isinstance(generate_call, Mock):
+        # Only require a ready local model when the local model will be the one answering: a
+        # configured cloud provider is tried first inside generate_test_plan() regardless of
+        # Ollama's state, so the local readiness gate must not block that attempt.
+        cloud_first = (
+            not isinstance(generate_call, Mock)
+            and self.router.specialist_router.cloud_route_available(RoutingComponent.MASTER_ORCHESTRATION, {}) is True
+        )
+        if not isinstance(generate_call, Mock) and not cloud_first:
             reachable, _, error = check_ollama_health(base_url=base_url, timeout=1.0)
             if reachable:
                 reachable, error = probe_ollama_chat_ready(
@@ -190,13 +198,19 @@ class AITestPlanGenerator:
             logger.info("Skipping live AI test plan generation for pack %s: %s", pack_id, error)
             generation_source = "local_fallback"
         else:
+            route_info: Dict[str, str] = {}
             try:
-                raw_output = self.router.generate_test_plan(safe_res.safe_prompt)
+                raw_output = self.router.generate_test_plan(safe_res.safe_prompt, route_info)
+                # Report who really answered (gemini, groq, ...). "ollama" and "deterministic" both
+                # mean the local model answered, which is the existing "ollama" label.
+                provider = route_info.get("provider")
+                if isinstance(provider, str) and provider not in ("", "ollama", "deterministic"):
+                    generation_source = provider
             except Exception as exc:
                 logger.warning("Local model router call failed: %s. Using local fallback.", exc)
                 generation_source = "local_fallback"
 
-        if generation_source == "ollama" and raw_output:
+        if generation_source != "local_fallback" and raw_output:
             parsed_dict = self.router._extract_json(raw_output)
             if not parsed_dict:
                 try:

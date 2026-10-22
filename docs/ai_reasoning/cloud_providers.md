@@ -69,12 +69,13 @@ reports.
 |---|---|---|
 | Root-cause suggestions (live run) | Yes, when a provider is configured and private-code mode is not withholding the prompt | Local Ollama model, then built-in logic |
 | Evidence evaluation (live run) | Same as above | Same as above |
-| Test plan "Generate with AI" | **No, local Ollama only** | Built-in logic (`Source: local_fallback`) |
+| Test plan "Generate with AI" | Same as above | Same as above |
 
-For the first two, the response's `generation_source` names whoever answered (`gemini`, `groq`, `openrouter`,
-`ollama`) or `local_fallback`. They do not require Ollama when a cloud provider will answer. When the
-local model is the one answering, they still check first that it is ready, and fall back to the
-built-in logic if it is not (the default model is `qwen3.5:9b`; install it with `ollama pull qwen3.5:9b`).
+All three report `generation_source` as whoever answered (`gemini`, `groq`, `openrouter`, `ollama`) or
+`local_fallback`; the test-plan preview shows this as its "Source:" line. None of them require Ollama when
+a cloud provider will answer. When the local model is the one answering, they still check first that it is
+ready, and fall back to the built-in logic if it is not (the default model is `qwen3.5:9b`; install it with
+`ollama pull qwen3.5:9b`).
 
 Private-code mode (`QA_AI_PRIVATE_CODE_MODE=true`) sends cloud models only a redacted placeholder, so these
 features treat the cloud as unavailable while it is on.
