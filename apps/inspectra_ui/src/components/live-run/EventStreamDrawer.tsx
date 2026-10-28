@@ -17,6 +17,7 @@ const EVENT_COLOR: Record<string, string> = {
   permission_request: P.fail,
   verdict: P.pass,
   error: P.fail,
+  notice: P.unclear,
   heartbeat: P.textFaint,
 };
 

@@ -621,7 +621,7 @@ export interface SecurityFindingsMetadata {
 
 export interface RunEvent {
   type: 'step_start' | 'step_end' | 'screenshot' | 'log' | 'api_call' | 'db_delta'
-      | 'ai_oracle' | 'permission_request' | 'verdict' | 'heartbeat' | 'error';
+      | 'ai_oracle' | 'permission_request' | 'verdict' | 'heartbeat' | 'error' | 'notice';
   step_id?: string;
   step?: number;
   step_name?: string;
@@ -637,7 +637,7 @@ export interface DurableRunEvent {
   run_id: string;
   step_index?: number;
   step_id?: string;
-  event_type: 'step_started' | 'step_completed' | 'evidence_captured' | 'error';
+  event_type: 'step_started' | 'step_completed' | 'evidence_captured' | 'error' | 'notice';
   message: string;
   payload: Record<string, unknown>;
   created_at: string;

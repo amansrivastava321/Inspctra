@@ -21,7 +21,7 @@ from qa_ai.product_backend.models import (
     ValidationPackCreate,
     ValidationPackUpdate,
 )
-from qa_ai.product_backend.run_manager import RunManager
+from qa_ai.product_backend.run_manager import DEFAULT_WATCH_SLOW_MO_MS, RunManager, RunOptions
 from qa_ai.product_backend.storage import ProductStorage
 from qa_ai.product_backend.routers.live_runs import extract_run_steps
 
@@ -179,6 +179,11 @@ def run_pack(
     execution_mode = body.execution_mode or "automated"
     if execution_mode not in ("manual", "automated"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid execution_mode. Must be manual or automated.")
+    if execution_mode == "manual" and (body.watch or body.continuous or body.slow_mo_ms is not None):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="watch, slow_mo_ms and continuous apply to automated runs only.",
+        )
 
     run = LiveRunRecord(
         pack_id=pack_id,
@@ -242,6 +247,8 @@ def run_pack(
 
     cases = storage.list_test_cases(pack_id)
     enabled_cases = [c for c in cases if c.get("enabled")]
+    # Which test case each step belongs to (None: no case), aligned with `steps`, for continuous runs.
+    step_case_ids: List[Optional[str]] = []
 
     if enabled_cases:
         steps = []
@@ -273,11 +280,18 @@ def run_pack(
                     "metric_name": t_step.get("metric_name"),
                     "description": f"[{case.get('title') or 'Case'}] {method + ' ' if method else ''}{action_type} {target_label}".strip(),
                 })
+                step_case_ids.append(case.get("test_case_id"))
     else:
         steps = pack_row.get("steps") or []
 
+    options = RunOptions(
+        watch=body.watch,
+        slow_mo_ms=DEFAULT_WATCH_SLOW_MO_MS if body.slow_mo_ms is None else body.slow_mo_ms,
+        continuous=body.continuous,
+        case_ids=tuple(step_case_ids),
+    )
     try:
-        run_manager.start_run(run.id, steps, target_row)
+        run_manager.start_run(run.id, steps, target_row, options=options)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 

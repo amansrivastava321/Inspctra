@@ -100,7 +100,11 @@ class PlaywrightEngine:
                 logger.error(f"Unknown browser: {self.browser_type}")
                 return False
 
-            self._browser = launcher.launch(headless=self.headless)
+            launch_options: Dict[str, Any] = {"headless": self.headless}
+            if self.slow_mo:
+                # Milliseconds Playwright waits between operations; lets a person follow a visible run.
+                launch_options["slow_mo"] = self.slow_mo
+            self._browser = launcher.launch(**launch_options)
 
             if not self.reset_context(timeout_seconds=self.timeout / 1000):
                 self._cleanup_failed_launch()
@@ -112,7 +116,9 @@ class PlaywrightEngine:
                 run_id = self.config.get("run_id", f"pw-{int(time.time())}")
                 self._evidence = EvidenceCollector(artifact_store=self.store, run_id=run_id)
 
-            logger.info(f"Playwright {self.browser_type} launched (headless={self.headless})")
+            logger.info(
+                f"Playwright {self.browser_type} launched (headless={self.headless}, slow_mo={self.slow_mo})"
+            )
             return True
 
         except ImportError:
@@ -181,6 +187,29 @@ class PlaywrightEngine:
             self._context = None
             self._page = None
             return False
+    def continue_context(self, timeout_seconds: float = 30) -> bool:
+        """Keep the current context and page (cookies, storage, typed input) for the next step.
+
+        The counterpart of reset_context() for steps that continue a flow. It applies the step's
+        timeout and clears the captured console/network buffers so evidence stays per-step, but
+        does not create a new context. Returns False when there is no live page to continue.
+        """
+        if self._browser is None or self._context is None or self._page is None:
+            return False
+        try:
+            if self._page.is_closed():
+                # A crash, a closed tab or a popup took the page away; the caller starts a fresh one.
+                return False
+            timeout_ms = max(1, int(float(timeout_seconds) * 1000))
+            self._context.set_default_timeout(timeout_ms)
+            self._console_messages.clear()
+            self._network_summary.clear()
+            self._raw_response_headers.clear()
+            return True
+        except Exception as exc:
+            logger.error("Browser context could not be continued: %s", exc)
+            return False
+
     def close(self) -> None:
         """Close browser and save evidence."""
         try:

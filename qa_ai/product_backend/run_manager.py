@@ -14,19 +14,44 @@ Security:
 from __future__ import annotations
 
 import logging
+import os
+import sys
 import threading
 import time
 import json
 import uuid
 import hashlib
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from qa_ai.product_backend.event_stream import EventStream
 from qa_ai.product_backend.models import Provenance, SUPPORTED_API_ACTIONS, SUPPORTED_WEB_ACTIONS
 from qa_ai.product_backend.run_event_recorder import RunEventRecorder
 
 logger = logging.getLogger(__name__)
+
+# Pause between browser actions when a person is watching, unless the request says otherwise.
+DEFAULT_WATCH_SLOW_MO_MS = 350
+
+
+@dataclass(frozen=True)
+class RunOptions:
+    """Opt-in execution options for one run. The defaults reproduce the original behaviour."""
+
+    watch: bool = False
+    slow_mo_ms: int = 0
+    continuous: bool = False
+    # Test case of each step, aligned with the run's steps; None means "no case" (the step is its own flow).
+    case_ids: Sequence[Optional[str]] = ()
+
+
+def display_available() -> bool:
+    """True when a visible browser window can be shown on this machine."""
+    if sys.platform in ("darwin", "win32"):
+        return True
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
 
 _GENERIC_DRY_RUN_ACTIONS = frozenset({"interact", "verify", "wait"})
 _UNAVAILABLE_ACTION_MARKERS = (
@@ -103,6 +128,7 @@ class RunManager:
         run_id: str,
         steps: List[Dict[str, Any]],
         app_target: Dict[str, Any],
+        options: Optional[RunOptions] = None,
     ) -> None:
         """
         Start a background run. Non-blocking.
@@ -114,7 +140,7 @@ class RunManager:
             cancel_flag = threading.Event()
             thread = threading.Thread(
                 target=self._execute,
-                args=(run_id, steps, app_target, cancel_flag),
+                args=(run_id, steps, app_target, cancel_flag, options or RunOptions()),
                 daemon=True,
                 name=f"run-{run_id[:8]}",
             )
@@ -218,10 +244,15 @@ class RunManager:
         steps: List[Dict[str, Any]],
         app_target: Dict[str, Any],
         cancel: threading.Event,
+        options: Optional[RunOptions] = None,
     ) -> None:
         """Main body of the background run thread."""
+        options = options or RunOptions()
+        # Only trust the case grouping when it lines up with the steps one-to-one.
+        case_ids: Sequence[Optional[str]] = options.case_ids if len(options.case_ids) == len(steps) else ()
         engine = None
         api_engine = None
+        previous_case: Optional[str] = None
         try:
             self._storage.update_run_status(
                 run_id, "running",
@@ -270,27 +301,27 @@ class RunManager:
                     api_context = result.pop("_api_context", api_context)
                 elif family == "browser":
                     if engine is None:
-                        self._publish_event(
-                            run_id,
-                            "browser_started",
-                            {"run_id": run_id, "message": "Launching headless Chromium..."},
-                            "log",
-                        )
-                        try:
-                            from qa_ai.live_execution.playwright_engine import PlaywrightEngine
+                        engine = self._launch_browser(run_id, options)
 
-                            candidate = PlaywrightEngine(config={"headless": True})
-                            engine = candidate if candidate.launch() else None
-                        except Exception as exc:
-                            logger.warning("RunManager: failed to launch PlaywrightEngine: %s", exc)
-                            engine = None
+                    step_timeout = float(step.get("timeout_seconds", 30))
+                    step_case = case_ids[idx] if case_ids else None
+                    # Continue the page and session only inside one test case; every other step starts clean.
+                    continue_flow = (
+                        options.continuous
+                        and engine is not None
+                        and step_case is not None
+                        and step_case == previous_case
+                    )
+                    prepared = bool(engine is not None and continue_flow and engine.continue_context(step_timeout))
+                    if engine is not None and not prepared:
+                        continue_flow = False
+                        prepared = bool(engine.reset_context(timeout_seconds=step_timeout))
+                    previous_case = step_case
 
-                    if engine is None:
-                        result = self._browser_runtime_unavailable(step)
-                    elif not engine.reset_context(timeout_seconds=float(step.get("timeout_seconds", 30))):
+                    if engine is None or not prepared:
                         result = self._browser_runtime_unavailable(step)
                     else:
-                        if action_type != "navigate" and target_url and engine.page:
+                        if action_type != "navigate" and target_url and engine.page and not continue_flow:
                             try:
                                 engine.page.goto(
                                     target_url,
@@ -480,6 +511,61 @@ class RunManager:
             "provenance": Provenance.UNAVAILABLE,
         }
 
+    def _launch_browser(self, run_id: str, options: RunOptions) -> Optional[Any]:
+        """Launch Chromium for a run.
+
+        Visible when the run asked to be watched and this machine has a display; otherwise (or if the
+        visible window cannot be opened) a hidden browser, with an event saying why. Returns None when no
+        browser can be started at all.
+        """
+        from qa_ai.live_execution.playwright_engine import PlaywrightEngine
+
+        visible = options.watch
+        if visible and not display_available():
+            self._publish_event(
+                run_id,
+                "watch_unavailable",
+                {
+                    "run_id": run_id,
+                    "message": "No display is available on the machine running Inspectra, "
+                    "so this run uses a hidden browser instead.",
+                },
+                "notice",
+            )
+            visible = False
+
+        for headed in ([True, False] if visible else [False]):
+            self._publish_event(
+                run_id,
+                "browser_started",
+                {
+                    "run_id": run_id,
+                    "message": "Launching visible Chromium (watch mode)..." if headed else "Launching headless Chromium...",
+                    "headless": not headed,
+                },
+                "log",
+            )
+            try:
+                config: Dict[str, Any] = {"headless": True}
+                if headed:
+                    config = {"headless": False, "slow_mo": max(0, int(options.slow_mo_ms))}
+                candidate = PlaywrightEngine(config=config)
+                if candidate.launch():
+                    return candidate
+            except Exception as exc:
+                logger.warning("RunManager: failed to launch PlaywrightEngine: %s", exc)
+            if headed:
+                self._publish_event(
+                    run_id,
+                    "watch_unavailable",
+                    {
+                        "run_id": run_id,
+                        "message": "The visible browser window could not be opened; using a hidden browser instead.",
+                    },
+                    "notice",
+                )
+        return None
+
     def _run_step_safe(
         self,
         step: Dict[str, Any],
@@ -576,6 +662,11 @@ class RunManager:
         elif event_type == "evidence_collected":
             normalized_type = "evidence_captured"
             message = f"Evidence captured: {data.get('type', 'artifact')}"
+        elif event_type == "watch_unavailable":
+            # Not an error: the run carries on with a hidden browser. Stored so the run page can say why
+            # a "watch" run was not visible even after it has finished.
+            normalized_type = "notice"
+            message = str(data.get("message") or "Watch mode was not available.")
         elif event_type in {"step_failed", "run_failed"}:
             normalized_type = "error"
             message = str(

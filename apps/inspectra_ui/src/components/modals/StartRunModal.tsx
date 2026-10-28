@@ -35,6 +35,9 @@ export function StartRunModal({ packId, packName, onClose, isManual = false }: S
   const [selectedAppId, setSelectedAppId] = useState('');
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState('');
+  // Automated runs only. Off by default: the run is hidden and every step starts from a clean page.
+  const [watch, setWatch] = useState(false);
+  const [continuous, setContinuous] = useState(false);
 
   // Load app targets on mount
   useEffect(() => {
@@ -52,7 +55,12 @@ export function StartRunModal({ packId, packName, onClose, isManual = false }: S
     try {
       const run = await post<LiveRunRecord>(
         isManual ? `/validation-packs/${packId}/runs` : `/validation-packs/${packId}/run`,
-        { app_target_id: selectedAppId, execution_mode: isManual ? 'manual' : 'automated' },
+        {
+          app_target_id: selectedAppId,
+          execution_mode: isManual ? 'manual' : 'automated',
+          ...(!isManual && watch ? { watch: true } : {}),
+          ...(!isManual && continuous ? { continuous: true } : {}),
+        },
       );
       nav(`/runs/${run.id}`);
     } catch (err) {
@@ -162,6 +170,38 @@ export function StartRunModal({ packId, packName, onClose, isManual = false }: S
             </div>
           )}
         </div>
+
+        {!isManual && (
+          <fieldset style={{ border: `1px solid ${P.border}`, borderRadius: 8, padding: '10px 14px', margin: 0,
+            display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <legend style={{ fontSize: 10, color: P.textMute, fontFamily: F.mono, textTransform: 'uppercase',
+              letterSpacing: '0.06em', padding: '0 6px' }}>
+              Run options
+            </legend>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={watch} onChange={e => setWatch(e.target.checked)}
+                style={{ accentColor: P.accent, marginTop: 2 }} />
+              <span>
+                <span style={{ fontSize: 12, color: P.text, fontWeight: 500 }}>Watch it run</span>
+                <span style={{ display: 'block', fontSize: 11, color: P.textMute, marginTop: 2 }}>
+                  Opens a visible browser window on the machine running Inspectra and slows each action so you can
+                  follow along. Uses a hidden browser if no screen is available.
+                </span>
+              </span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={continuous} onChange={e => setContinuous(e.target.checked)}
+                style={{ accentColor: P.accent, marginTop: 2 }} />
+              <span>
+                <span style={{ fontSize: 12, color: P.text, fontWeight: 500 }}>Run each test case as one flow</span>
+                <span style={{ display: 'block', fontSize: 11, color: P.textMute, marginTop: 2 }}>
+                  Keeps the page and session between the steps of a test case, so typed text and logins carry over.
+                  Otherwise every step starts from a clean page.
+                </span>
+              </span>
+            </label>
+          </fieldset>
+        )}
 
         {startError && (
           <div style={{ padding: '8px 12px', borderRadius: 7,
