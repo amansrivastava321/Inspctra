@@ -40,7 +40,8 @@ def test_backend_and_frontend_jobs_are_independent_and_bounded() -> None:
 
     assert set(jobs) == {"backend", "frontend"}
     for job in jobs.values():
-        assert job["runs-on"] == "ubuntu-latest"
+        # Pinned: ubuntu-latest moved to 26.04, which this Playwright version cannot install Chromium on.
+        assert job["runs-on"] == "ubuntu-24.04"
         assert 1 <= int(job["timeout-minutes"]) <= 30
         assert "needs" not in job
         assert "continue-on-error" not in job
