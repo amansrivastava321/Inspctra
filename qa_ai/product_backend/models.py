@@ -354,6 +354,10 @@ class ValidationPack(BaseModel):
 class StartRunRequest(BaseModel):
     app_target_id: str
     execution_mode: Optional[str] = "automated"  # manual | automated
+    # Automated runs only. All default to the previous behaviour (invisible browser, isolated steps).
+    watch: bool = False  # open a visible browser window on the machine running the backend
+    slow_mo_ms: Optional[int] = Field(default=None, ge=0, le=5000)  # pause between actions while watching
+    continuous: bool = False  # keep the page and session across the steps of one test case
 
 
 class ManualStepResultRequest(BaseModel):
