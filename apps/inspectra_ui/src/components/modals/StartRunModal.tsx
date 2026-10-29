@@ -178,6 +178,9 @@ export function StartRunModal({ packId, packName, onClose, isManual = false }: S
               letterSpacing: '0.06em', padding: '0 6px' }}>
               Run options
             </legend>
+            <div style={{ fontSize: 11, color: P.textMute }}>
+              By default the run happens in the background: no window opens, so you can keep working while it tests.
+            </div>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
               <input type="checkbox" checked={watch} onChange={e => setWatch(e.target.checked)}
                 style={{ accentColor: P.accent, marginTop: 2 }} />

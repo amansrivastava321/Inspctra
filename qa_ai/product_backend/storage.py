@@ -1066,6 +1066,13 @@ class ProductStorage:
         if fields:
             self.update_validation_pack(pack_id, fields)
 
+    def clear_pack_next_run(self, pack_id: str) -> None:
+        """Forget a pack's next scheduled run (update_validation_pack skips None, so it cannot do this)."""
+        self._execute(
+            "UPDATE validation_packs SET next_run_at = NULL, updated_at = ? WHERE id = ?",
+            (_now_iso(), pack_id),
+        )
+
     def get_scheduled_packs(self) -> List[Dict[str, Any]]:
         """Return all packs with schedule_enabled=1 and a non-empty schedule."""
         rows = self._rows_to_list(
