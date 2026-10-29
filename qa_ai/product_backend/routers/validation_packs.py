@@ -140,6 +140,9 @@ def update_pack(
                 schedule=result.get("schedule"),
                 enabled=bool(result.get("schedule_enabled")),
             )
+            # The scheduler has just stored next_run_at; re-read so the response carries it instead
+            # of the value from before the change (which made a saved schedule look like it had no next run).
+            updated = storage.get_validation_pack(pack_id) or updated
 
     return ValidationPack(**(updated or row))
 

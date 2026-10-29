@@ -55,6 +55,12 @@ describe('start-run dialog options', () => {
     expect(flow).not.toBeChecked();
   });
 
+  it('says up front that a run happens in the background by default', async () => {
+    renderModal();
+
+    expect(await screen.findByText(/happens in the background: no window opens/i)).toBeInTheDocument();
+  });
+
   it('sends watch when it is ticked', async () => {
     renderModal();
     fireEvent.click(await screen.findByRole('checkbox', { name: /Watch it run/i }));

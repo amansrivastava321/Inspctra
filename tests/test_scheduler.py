@@ -88,12 +88,14 @@ class TestPackSchedulerNotifyScheduleChanged:
     def test_disabled_clears_next_run_at(self):
         sched, storage, _ = _make_scheduler()
         sched.notify_schedule_changed("pack-1", "daily", enabled=False)
-        storage.update_pack_schedule_run.assert_called_once_with("pack-1", next_run_at=None)
+        storage.clear_pack_next_run.assert_called_once_with("pack-1")
+        storage.update_pack_schedule_run.assert_not_called()
 
     def test_none_schedule_clears_next_run_at(self):
         sched, storage, _ = _make_scheduler()
         sched.notify_schedule_changed("pack-1", "none", enabled=True)
-        storage.update_pack_schedule_run.assert_called_once_with("pack-1", next_run_at=None)
+        storage.clear_pack_next_run.assert_called_once_with("pack-1")
+        storage.update_pack_schedule_run.assert_not_called()
 
     def test_enabled_persists_next_run_at(self):
         sched, storage, _ = _make_scheduler()

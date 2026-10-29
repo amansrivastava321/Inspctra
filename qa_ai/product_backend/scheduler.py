@@ -99,7 +99,7 @@ class PackScheduler:
         immediately (without waiting for the next tick).
         """
         if not enabled or not schedule or schedule == "none":
-            self._storage.update_pack_schedule_run(pack_id, next_run_at=None)
+            self._storage.clear_pack_next_run(pack_id)
             return
         nxt = compute_next_run_at(schedule)
         self._storage.update_pack_schedule_run(
