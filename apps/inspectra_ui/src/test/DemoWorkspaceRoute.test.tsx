@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
+import { SCHEDULE_PREVIEW_TOOLTIP } from '../config/capabilities';
 
 vi.mock('../api/client', () => {
   class ApiError extends Error {
@@ -133,14 +134,16 @@ describe('explicit demo workspace route', () => {
     expect(screen.getAllByTestId('preview-badge').length).toBeGreaterThanOrEqual(3);
   });
 
-  it('labels demo schedules as preview because scheduling is not active', async () => {
+  it('describes supported demo schedules in plain words and keeps Preview only on ones the scheduler cannot run', async () => {
     window.history.pushState({}, '', '/demo/packs');
     render(<App />);
 
     expect(await screen.findByText(DEMO_MESSAGE)).toBeInTheDocument();
-    expect(screen.getByText('nightly')).toBeInTheDocument();
-    expect(screen.getAllByTitle('Scheduling will be available in a future release.').length).toBeGreaterThan(0);
-    expect(screen.getAllByTestId('preview-badge').length).toBeGreaterThanOrEqual(8);
+    expect(screen.getAllByText('Every day at 02:00 (UTC)').length).toBeGreaterThan(0);
+    expect(screen.queryByText('nightly')).not.toBeInTheDocument();
+    // "on PR", "weekly" and "weekdays 09:00" are free text the scheduler cannot honour.
+    expect(screen.getByText('on PR')).toBeInTheDocument();
+    expect(screen.getAllByTitle(SCHEDULE_PREVIEW_TOOLTIP).length).toBeGreaterThan(0);
   });
 
   it('disables run-detail mutations in demo mode', async () => {

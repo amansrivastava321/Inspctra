@@ -1,5 +1,7 @@
+import { isNotScheduled, isSupportedSchedule } from './schedule';
+
 export const PREVIEW_TOOLTIP = 'This feature is planned for a future release. Runs will be unavailable.';
-export const SCHEDULE_PREVIEW_TOOLTIP = 'Scheduling will be available in a future release.';
+export const SCHEDULE_PREVIEW_TOOLTIP = 'This schedule is not supported yet. Use hourly, daily, weekdays or an interval.';
 export const PREVIEW_RUN_TOOLTIP = 'Contains preview steps. Preview capabilities cannot be run yet.';
 
 export type CapabilityId =
@@ -61,13 +63,10 @@ export function isPreviewAppType(appType: unknown): boolean {
   return ['mobile', 'android', 'ios', 'desktop', 'native_macos', 'native_windows', 'native_linux'].includes(value);
 }
 
-// The scheduler is not an MVP execution path yet; only explicitly on-demand
-// packs are executable without a Preview label.
-const LIVE_SCHEDULES = new Set(['manual', 'none', 'on_demand', 'ondemand']);
-
+// The scheduler runs hourly, daily, nightly, weekdays and every_<N>m / every_<N>h packs. Only free-text
+// schedules it cannot honour (for example "on PR") are still shown as Preview.
 export function isPreviewSchedule(schedule: unknown): boolean {
-  const value = normalize(schedule);
-  return value.length > 0 && !LIVE_SCHEDULES.has(value);
+  return !isNotScheduled(schedule) && !isSupportedSchedule(schedule);
 }
 
 function objectContainsPreview(value: unknown): boolean {

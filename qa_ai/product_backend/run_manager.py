@@ -26,6 +26,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
 from qa_ai.product_backend.event_stream import EventStream
+from qa_ai.product_backend.notifier import notify_scheduled_failure
+from qa_ai.product_backend.pack_steps import build_pack_steps
 from qa_ai.product_backend.models import Provenance, SUPPORTED_API_ACTIONS, SUPPORTED_WEB_ACTIONS
 from qa_ai.product_backend.run_event_recorder import RunEventRecorder
 
@@ -44,6 +46,8 @@ class RunOptions:
     continuous: bool = False
     # Test case of each step, aligned with the run's steps; None means "no case" (the step is its own flow).
     case_ids: Sequence[Optional[str]] = ()
+    # True when the scheduler started the run (failures of scheduled runs are reported to the pack's webhook).
+    scheduled: bool = False
 
 
 def display_available() -> bool:
@@ -200,35 +204,15 @@ class RunManager:
         )
         self._storage.create_run(run.model_dump())
 
-        cases = self._storage.list_test_cases(pack_id)
-        enabled_cases = [c for c in cases if c.get("enabled")]
-        if enabled_cases:
-            steps: List[Dict[str, Any]] = []
-            for case in enabled_cases:
-                test_steps = sorted(case.get("test_steps") or [], key=lambda s: s.get("step_order", 0))
-                for t_step in test_steps:
-                    steps.append({
-                        "step_id": t_step.get("step_id", ""),
-                        "action_type": t_step.get("action_type"),
-                        "target": t_step.get("target"),
-                        "value": t_step.get("value"),
-                        "expected": t_step.get("expected"),
-                        "input_value": t_step.get("value") or t_step.get("expected") or "",
-                        "timeout_seconds": (t_step.get("timeout_ms") or 30000) / 1000,
-                        "optional": bool(t_step.get("optional")),
-                        "method": t_step.get("method"),
-                        "url": t_step.get("url"),
-                        "headers": t_step.get("headers") or {},
-                        "query_params": t_step.get("query_params") or {},
-                        "body_json": t_step.get("body_json"),
-                        "expected_status": t_step.get("expected_status"),
-                        "description": f"[Scheduled] {t_step.get('action_type', '')} {t_step.get('target') or ''}".strip(),
-                    })
-        else:
-            steps = list(pack_row.get("steps") or [])
+        steps, case_ids = build_pack_steps(pack_row, self._storage.list_test_cases(pack_id))
+        options = RunOptions(
+            continuous=bool(pack_row.get("continuous")),
+            case_ids=tuple(case_ids),
+            scheduled=True,
+        )
 
         try:
-            self.start_run(run.id, steps, target_row)
+            self.start_run(run.id, steps, target_row, options=options)
         except ValueError:
             logger.warning("ScheduleRun: run %s already tracked", run.id)
 
@@ -433,9 +417,24 @@ class RunManager:
                 except Exception:
                     pass
             self._stream.close_run(run_id)
+            self._notify_scheduled_failure(run_id, options)
             with self._lock:
                 self._threads.pop(run_id, None)
                 self._cancel_flags.pop(run_id, None)
+
+    def _notify_scheduled_failure(self, run_id: str, options: RunOptions) -> None:
+        """Tell the pack's webhook (if it has one) that a scheduled run failed. Never raises."""
+        if not options.scheduled:
+            return
+        try:
+            run = self._storage.get_run(run_id)
+            if not run or run.get("status") not in ("failed", "error"):
+                return
+            pack = self._storage.get_validation_pack(run.get("pack_id") or "")
+            if pack and pack.get("notify_webhook_url"):
+                notify_scheduled_failure(pack, run)
+        except Exception:
+            logger.warning("RunManager: failure notification for run %s was not sent", run_id, exc_info=True)
 
     def _finalize_run(
         self, run_id: str, status: str, passed: int, failed: int, total: int

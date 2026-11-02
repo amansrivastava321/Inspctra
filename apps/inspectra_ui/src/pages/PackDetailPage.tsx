@@ -25,7 +25,7 @@ import { LoadingSkeleton, ErrorState, OfflineState, PartialConfigBanner } from '
 import { StartRunModal } from '../components/modals/StartRunModal';
 import { useApi } from '../hooks/useApi';
 import { useWorkspaceNavigate } from '../state/WorkspaceModeContext';
-import { get, del, patch } from '../api/client';
+import { get, del } from '../api/client';
 import {
   getTestPlan,
   generateTestPlan,
@@ -55,6 +55,7 @@ import type {
 import { ProvenanceBadge } from '../components/ProvenanceBadge';
 import { PreviewBadge } from '../components/PreviewBadge';
 import { CapabilityTypeSelector } from '../components/validation/CapabilityTypeSelector';
+import { SchedulePanel } from '../components/validation/SchedulePanel';
 import {
   hasPreviewSteps,
   isPreviewAction,
@@ -86,6 +87,9 @@ interface BackendPack {
   provenance?: Provenance;
   schedule?: string;
   schedule_enabled?: boolean;
+  schedule_timezone?: string;
+  continuous?: boolean;
+  notify_webhook_url?: string | null;
   next_run_at?: string;
   last_scheduled_run_at?: string;
 }
@@ -1624,8 +1628,6 @@ export default function PackDetailPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiGenError, setAiGenError] = useState('');
   const [aiPreview, setAiPreview] = useState<AITestPlanPreview | null>(null);
-  const [scheduleEnabled, setScheduleEnabled] = useState(false);
-  const [scheduleUpdating, setScheduleUpdating] = useState(false);
 
   const handleGenerateAi = async () => {
     if (!packId) return;
@@ -1699,10 +1701,6 @@ export default function PackDetailPage() {
       setShowRunReview(false);
     }
   }, [containsPreviewSteps]);
-
-  useEffect(() => {
-    if (pack) setScheduleEnabled(pack.schedule_enabled ?? false);
-  }, [pack]);
 
   const handleDelete = async () => {
     if (!packId) return;
@@ -1925,65 +1923,12 @@ export default function PackDetailPage() {
           provenance={pack.provenance} provenanceSource="Validation pack metric" />
       </div>
 
-      {/* Schedule panel */}
-      {pack.schedule && pack.schedule !== 'none' && (
-        <Card style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: P.textMute, fontFamily: F.mono,
-                textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-                Schedule
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>
-                  {pack.schedule}
-                </span>
-                {pack.next_run_at && scheduleEnabled && (
-                  <span style={{ fontSize: 12, color: P.textMute }}>
-                    Next run: {new Date(pack.next_run_at).toLocaleString()}
-                  </span>
-                )}
-                {pack.last_scheduled_run_at && (
-                  <span style={{ fontSize: 12, color: P.textMute }}>
-                    Last: {new Date(pack.last_scheduled_run_at).toLocaleString()}
-                  </span>
-                )}
-              </div>
-            </div>
-            <button
-              disabled={scheduleUpdating}
-              aria-label={scheduleEnabled ? 'Disable schedule' : 'Enable schedule'}
-              onClick={async () => {
-                if (!packId) return;
-                const next = !scheduleEnabled;
-                setScheduleEnabled(next);
-                setScheduleUpdating(true);
-                try {
-                  await patch(`/validation-packs/${packId}`, { schedule_enabled: next });
-                  refetchPack();
-                } catch {
-                  setScheduleEnabled(!next);
-                } finally {
-                  setScheduleUpdating(false);
-                }
-              }}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 6,
-                border: `1px solid ${scheduleEnabled ? P.pass : P.border}`,
-                background: scheduleEnabled ? P.pass : 'transparent',
-                color: scheduleEnabled ? '#fff' : P.text,
-                cursor: scheduleUpdating ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-                fontSize: 13,
-                opacity: scheduleUpdating ? 0.6 : 1,
-              }}
-            >
-              {scheduleEnabled ? 'Enabled' : 'Disabled'}
-            </button>
-          </div>
-        </Card>
-      )}
+      {/* Schedule panel: keyed on what is saved so the form re-reads it after every save */}
+      <SchedulePanel
+        key={`${pack.schedule}|${pack.schedule_enabled}|${pack.schedule_timezone}|${pack.continuous}|${pack.notify_webhook_url}`}
+        pack={pack}
+        onSaved={refetchPack}
+      />
 
       <div className="resp-detail-grid">
         {/* Steps */}

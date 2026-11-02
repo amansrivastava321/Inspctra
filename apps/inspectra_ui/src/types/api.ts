@@ -314,6 +314,8 @@ export interface ValidationPack {
   target_app_ids?: string[];
   target_names?: string[];
   schedule?: string;
+  schedule_enabled?: boolean;
+  schedule_timezone?: string;
   readiness?: ReadinessState;
   last_run_at?: string;
   last_verdict?: Verdict;

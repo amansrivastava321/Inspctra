@@ -11,6 +11,7 @@ import {
   isPreviewAction,
   isPreviewAppType,
   isPreviewSchedule,
+  SCHEDULE_PREVIEW_TOOLTIP,
 } from '../config/capabilities';
 
 vi.mock('../api/client', () => ({
@@ -53,10 +54,16 @@ describe('preview capability policy', () => {
     expect(isPreviewAppType('desktop')).toBe(true);
     expect(isPreviewAppType('web')).toBe(false);
     expect(isPreviewAppType('api')).toBe(false);
-    expect(isPreviewSchedule('nightly')).toBe(true);
+    // Schedules the scheduler can run are live; only free-text ones it cannot honour stay Preview.
+    expect(isPreviewSchedule('nightly')).toBe(false);
+    expect(isPreviewSchedule('hourly')).toBe(false);
+    expect(isPreviewSchedule('every_15m')).toBe(false);
+    expect(isPreviewSchedule('every_6h')).toBe(false);
     expect(isPreviewSchedule('weekdays 09:00')).toBe(true);
     expect(isPreviewSchedule('on PR')).toBe(true);
+    expect(isPreviewSchedule('every_1m')).toBe(true);
     expect(isPreviewSchedule('manual')).toBe(false);
+    expect(isPreviewSchedule('none')).toBe(false);
   });
 });
 
@@ -97,13 +104,20 @@ describe('preview capability presentation', () => {
     expect(onSelect).toHaveBeenCalledWith('api_request');
   });
 
-  it('labels scheduled execution as preview but leaves manual runs unbadged', () => {
+  it('describes supported schedules, badges unsupported ones as preview and leaves manual runs unbadged', () => {
     const { rerender } = render(<PreviewSchedule schedule="nightly" />);
-    expect(screen.getByText('nightly')).toBeInTheDocument();
-    expect(screen.getByText('Preview')).toHaveAttribute(
-      'title',
-      'Scheduling will be available in a future release.',
-    );
+    expect(screen.getByText('Every day at 02:00 (UTC)')).toBeInTheDocument();
+    expect(screen.queryByText('Preview')).not.toBeInTheDocument();
+
+    rerender(<PreviewSchedule schedule="every_15m" />);
+    expect(screen.getByText('Every 15 minutes')).toBeInTheDocument();
+
+    rerender(<PreviewSchedule schedule="weekdays" timezone="Asia/Kolkata" />);
+    expect(screen.getByText('Weekdays at 09:00 (Asia/Kolkata)')).toBeInTheDocument();
+
+    rerender(<PreviewSchedule schedule="on PR" />);
+    expect(screen.getByText('on PR')).toBeInTheDocument();
+    expect(screen.getByText('Preview')).toHaveAttribute('title', SCHEDULE_PREVIEW_TOOLTIP);
 
     rerender(<PreviewSchedule schedule="manual" />);
     expect(screen.getByText('manual')).toBeInTheDocument();
