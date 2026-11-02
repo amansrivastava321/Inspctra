@@ -384,7 +384,10 @@ def test_scheduled_runs_start_with_the_default_hidden_options(tmp_path: Path, mo
     assert run_manager.schedule_run("pk") is not None
 
     args, kwargs = captured[0]
-    assert len(args) == 3 and kwargs == {}  # no options: a scheduled run is unattended, so it stays hidden
+    options = kwargs["options"]
+    assert len(args) == 3
+    # A scheduled run is unattended, so it never opens a window; "one flow" follows the pack's own setting.
+    assert (options.watch, options.slow_mo_ms, options.continuous, options.scheduled) == (False, 0, False, True)
 
 
 # ── the API ──────────────────────────────────────────────────────────────────

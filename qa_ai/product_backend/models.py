@@ -320,8 +320,11 @@ class ValidationPackCreate(BaseModel):
     description: str = ""
     steps: List[ValidationStep] = Field(default_factory=list)
     app_id: Optional[str] = None
-    schedule: Optional[str] = None         # none | daily | nightly | weekdays | hourly
+    schedule: Optional[str] = None         # none | daily | nightly | weekdays | hourly | every_<N>m | every_<N>h
     schedule_enabled: bool = False
+    schedule_timezone: str = "UTC"         # IANA name; used by the time-of-day schedules
+    continuous: bool = False               # run each test case as one flow (scheduled runs)
+    notify_webhook_url: Optional[str] = None
 
 
 class ValidationPackUpdate(BaseModel):
@@ -331,6 +334,9 @@ class ValidationPackUpdate(BaseModel):
     app_id: Optional[str] = None
     schedule: Optional[str] = None
     schedule_enabled: Optional[bool] = None
+    schedule_timezone: Optional[str] = None
+    continuous: Optional[bool] = None
+    notify_webhook_url: Optional[str] = None   # "" clears it
 
 
 class ValidationPack(BaseModel):
@@ -342,6 +348,9 @@ class ValidationPack(BaseModel):
     app_id: Optional[str] = None
     schedule: Optional[str] = None
     schedule_enabled: bool = False
+    schedule_timezone: str = "UTC"
+    continuous: bool = False
+    notify_webhook_url: Optional[str] = None
     next_run_at: Optional[str] = None
     last_scheduled_run_at: Optional[str] = None
     created_at: str = Field(default_factory=_now_iso)

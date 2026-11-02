@@ -117,7 +117,7 @@ export default function ValidationPacksPage() {
               </div>
 
               {/* Schedule */}
-              <PreviewSchedule schedule={pack.schedule} />
+              <PreviewSchedule schedule={pack.schedule_enabled === false ? undefined : pack.schedule} timezone={pack.schedule_timezone} />
 
               {/* Readiness */}
               <StatusBadge kind={(pack.readiness ?? 'missing') as StatusKind} small />

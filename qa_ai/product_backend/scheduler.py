@@ -6,10 +6,15 @@ whose schedule is enabled and whose next_run_at <= now.
 
 Schedule types
 --------------
-none / null   — no schedule (skip)
-daily / nightly — every day at 02:00 UTC
-weekdays      — Mon-Fri at 09:00 UTC
-hourly        — every hour at :00
+none / null   - no schedule (skip)
+daily / nightly - every day at 02:00 in the pack's timezone
+weekdays      - Mon-Fri at 09:00 in the pack's timezone
+hourly        - every hour at :00
+every_<N>m    - every N minutes, 5 <= N <= 720   (e.g. every_15m)
+every_<N>h    - every N hours, 1 <= N <= 168     (e.g. every_6h)
+
+The timezone is an IANA name (default UTC) and only affects the time-of-day schedules; hourly and
+every_<N>m/h schedules do not depend on it.
 
 Concurrency
 -----------
@@ -22,34 +27,79 @@ Security: no shell commands, no eval, no external calls.
 from __future__ import annotations
 
 import logging
+import re
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
 
 MAX_CONCURRENT = 3
-_VALID_SCHEDULES = frozenset({"daily", "nightly", "weekdays", "hourly"})
+DEFAULT_TIMEZONE = "UTC"
+_FIXED_SCHEDULES = frozenset({"daily", "nightly", "weekdays", "hourly"})
+_INTERVAL_RE = re.compile(r"^every_(\d{1,4})([mh])$")
+MIN_INTERVAL_MINUTES = 5
+MAX_INTERVAL_MINUTES = 720
+MAX_INTERVAL_HOURS = 168
 
 
-def compute_next_run_at(schedule: Optional[str], after: Optional[datetime] = None) -> Optional[datetime]:
-    """Return the next UTC fire time for a schedule type, or None if unknown."""
+def parse_interval(schedule: Optional[str]) -> Optional[timedelta]:
+    """The period of an every_<N>m / every_<N>h schedule, or None if it is not one (or is out of range)."""
+    match = _INTERVAL_RE.match((schedule or "").strip().lower())
+    if not match:
+        return None
+    count, unit = int(match.group(1)), match.group(2)
+    if unit == "m":
+        ok = MIN_INTERVAL_MINUTES <= count <= MAX_INTERVAL_MINUTES
+    else:
+        ok = 1 <= count <= MAX_INTERVAL_HOURS
+    if not ok:
+        return None
+    return timedelta(minutes=count) if unit == "m" else timedelta(hours=count)
+
+
+def is_valid_schedule(schedule: Optional[str]) -> bool:
+    """True for "none"/empty, a fixed schedule or an in-range interval."""
+    sched = (schedule or "").strip().lower()
+    return sched in ("", "none") or sched in _FIXED_SCHEDULES or parse_interval(sched) is not None
+
+
+def resolve_timezone(name: Optional[str]) -> Optional[ZoneInfo]:
+    """The ZoneInfo for an IANA name ("" / None mean UTC), or None if the name is unknown."""
+    try:
+        return ZoneInfo((name or DEFAULT_TIMEZONE).strip() or DEFAULT_TIMEZONE)
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        return None
+
+
+def _local_slot(day: date, hour: int, zone: ZoneInfo) -> datetime:
+    """`hour`:00 on `day` in `zone`, as an aware UTC datetime."""
+    return datetime.combine(day, time(hour=hour), tzinfo=zone).astimezone(timezone.utc)
+
+
+def compute_next_run_at(
+    schedule: Optional[str],
+    after: Optional[datetime] = None,
+    tz_name: Optional[str] = DEFAULT_TIMEZONE,
+) -> Optional[datetime]:
+    """Return the next fire time (UTC) for a schedule type, or None if unknown."""
     now = after or datetime.now(timezone.utc)
     sched = (schedule or "").strip().lower()
-    if sched in ("daily", "nightly"):
-        candidate = now.replace(hour=2, minute=0, second=0, microsecond=0)
-        if candidate <= now:
-            candidate += timedelta(days=1)
-        return candidate
-    if sched == "weekdays":
-        candidate = now.replace(hour=9, minute=0, second=0, microsecond=0)
-        if candidate <= now:
-            candidate += timedelta(days=1)
-        while candidate.weekday() >= 5:  # 5=Sat, 6=Sun
-            candidate += timedelta(days=1)
-        return candidate
+    interval = parse_interval(sched)
+    if interval is not None:
+        return now.replace(second=0, microsecond=0) + interval
     if sched == "hourly":
         return now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    if sched in ("daily", "nightly", "weekdays"):
+        zone = resolve_timezone(tz_name) or ZoneInfo(DEFAULT_TIMEZONE)
+        hour = 9 if sched == "weekdays" else 2
+        day = now.astimezone(zone).date()
+        candidate = _local_slot(day, hour, zone)
+        while candidate <= now or (sched == "weekdays" and day.weekday() >= 5):
+            day += timedelta(days=1)
+            candidate = _local_slot(day, hour, zone)
+        return candidate
     return None
 
 
@@ -92,7 +142,13 @@ class PackScheduler:
             self._thread.join(timeout=self._tick_interval + 5)
         logger.info("PackScheduler stopped")
 
-    def notify_schedule_changed(self, pack_id: str, schedule: Optional[str], enabled: bool) -> None:
+    def notify_schedule_changed(
+        self,
+        pack_id: str,
+        schedule: Optional[str],
+        enabled: bool,
+        tz_name: Optional[str] = DEFAULT_TIMEZONE,
+    ) -> None:
         """
         Called when a pack's schedule is saved via the API.
         Recomputes and persists next_run_at so the UI shows the correct value
@@ -101,7 +157,7 @@ class PackScheduler:
         if not enabled or not schedule or schedule == "none":
             self._storage.clear_pack_next_run(pack_id)
             return
-        nxt = compute_next_run_at(schedule)
+        nxt = compute_next_run_at(schedule, tz_name=tz_name)
         self._storage.update_pack_schedule_run(
             pack_id,
             next_run_at=nxt.isoformat() if nxt else None,
@@ -130,6 +186,11 @@ class PackScheduler:
 
             next_run_str = pack.get("next_run_at")
             if not next_run_str:
+                # Enabled but never given a slot (e.g. enabled by hand in the database): schedule it now
+                # instead of leaving it silent forever.
+                first = compute_next_run_at(pack.get("schedule"), after=now, tz_name=pack.get("schedule_timezone"))
+                if first is not None:
+                    self._storage.update_pack_schedule_run(pack["id"], next_run_at=first.isoformat())
                 continue
             try:
                 next_run = datetime.fromisoformat(next_run_str)
@@ -148,7 +209,7 @@ class PackScheduler:
                     "PackScheduler: pack %s is already active, skipping occurrence and advancing",
                     pack_id,
                 )
-                new_next = compute_next_run_at(schedule, after=now)
+                new_next = compute_next_run_at(schedule, after=now, tz_name=pack.get("schedule_timezone"))
                 self._storage.update_pack_schedule_run(
                     pack_id,
                     next_run_at=new_next.isoformat() if new_next else None,
@@ -162,7 +223,7 @@ class PackScheduler:
                 logger.exception("PackScheduler: error starting run for pack %s", pack_id)
                 run_id = None
 
-            new_next = compute_next_run_at(schedule, after=now)
+            new_next = compute_next_run_at(schedule, after=now, tz_name=pack.get("schedule_timezone"))
             self._storage.update_pack_schedule_run(
                 pack_id,
                 last_scheduled_run_at=now.isoformat(),

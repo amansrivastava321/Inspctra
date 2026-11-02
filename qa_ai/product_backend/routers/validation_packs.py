@@ -13,6 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from qa_ai.product_backend.artifact_index import ArtifactIndex
 from qa_ai.product_backend.dependencies import get_artifact_index, get_run_manager, get_storage
+from qa_ai.product_backend.notifier import is_valid_webhook_url, mask_webhook_url
+from qa_ai.product_backend.pack_steps import build_pack_steps
 from qa_ai.product_backend.models import (
     LiveRunRecord,
     Provenance,
@@ -22,10 +24,45 @@ from qa_ai.product_backend.models import (
     ValidationPackUpdate,
 )
 from qa_ai.product_backend.run_manager import DEFAULT_WATCH_SLOW_MO_MS, RunManager, RunOptions
+from qa_ai.product_backend.scheduler import (
+    MAX_INTERVAL_HOURS,
+    MAX_INTERVAL_MINUTES,
+    MIN_INTERVAL_MINUTES,
+    is_valid_schedule,
+    resolve_timezone,
+)
 from qa_ai.product_backend.storage import ProductStorage
 from qa_ai.product_backend.routers.live_runs import extract_run_steps
 
 router = APIRouter(tags=["validation-packs"])
+
+
+def _validate_schedule_fields(fields: dict) -> None:
+    """400 on a schedule, timezone or webhook URL the scheduler/notifier could not honour."""
+    if "schedule" in fields and not is_valid_schedule(fields["schedule"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Unknown schedule. Use none, hourly, daily, nightly, weekdays, "
+                f"every_<N>m ({MIN_INTERVAL_MINUTES}-{MAX_INTERVAL_MINUTES}) or every_<N>h (1-{MAX_INTERVAL_HOURS})."
+            ),
+        )
+    if "schedule_timezone" in fields and resolve_timezone(fields["schedule_timezone"]) is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unknown timezone. Use an IANA name such as UTC, Europe/London or Asia/Kolkata.",
+        )
+    url = fields.get("notify_webhook_url")
+    if url and not is_valid_webhook_url(url):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="notify_webhook_url must be an http(s) URL.",
+        )
+
+
+def _public_pack(row: dict) -> ValidationPack:
+    """The pack as the API returns it: the webhook URL may carry a secret token, so only its origin is shown."""
+    return ValidationPack(**{**row, "notify_webhook_url": mask_webhook_url(row.get("notify_webhook_url"))})
 
 
 @router.get("/validation-packs", response_model=List[ValidationPack])
@@ -35,7 +72,7 @@ def list_packs(
     storage: ProductStorage = Depends(get_storage),
 ) -> List[ValidationPack]:
     return [
-        ValidationPack(**r)
+        _public_pack(r)
         for r in storage.list_validation_packs(project_id=project_id, app_id=app_id)
     ]
 
@@ -84,7 +121,7 @@ def get_pack(pack_id: str, storage: ProductStorage = Depends(get_storage)) -> Va
     row = storage.get_validation_pack(pack_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Validation pack not found.")
-    return ValidationPack(**row)
+    return _public_pack(row)
 
 
 def _get_scheduler(request: Request):
@@ -103,6 +140,7 @@ def update_pack(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Validation pack not found.")
     fields = body.model_dump(exclude_none=True)
+    _validate_schedule_fields(fields)
 
     # Validate app_id linkage on update — same guard as create_pack
     if "app_id" in fields and fields["app_id"] is not None:
@@ -131,7 +169,7 @@ def update_pack(
     updated = storage.update_validation_pack(pack_id, fields)
 
     # Notify scheduler if schedule settings changed
-    if "schedule" in fields or "schedule_enabled" in fields:
+    if {"schedule", "schedule_enabled", "schedule_timezone"} & fields.keys():
         sched = _get_scheduler(request)
         if sched is not None:
             result = updated or row
@@ -139,12 +177,13 @@ def update_pack(
                 pack_id,
                 schedule=result.get("schedule"),
                 enabled=bool(result.get("schedule_enabled")),
+                tz_name=result.get("schedule_timezone"),
             )
             # The scheduler has just stored next_run_at; re-read so the response carries it instead
             # of the value from before the change (which made a saved schedule look like it had no next run).
             updated = storage.get_validation_pack(pack_id) or updated
 
-    return ValidationPack(**(updated or row))
+    return _public_pack(updated or row)
 
 
 @router.delete("/validation-packs/{pack_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -248,44 +287,7 @@ def run_pack(
         run_dict["provenance"] = Provenance.UNAVAILABLE
         return LiveRunRecord(**run_dict)
 
-    cases = storage.list_test_cases(pack_id)
-    enabled_cases = [c for c in cases if c.get("enabled")]
-    # Which test case each step belongs to (None: no case), aligned with `steps`, for continuous runs.
-    step_case_ids: List[Optional[str]] = []
-
-    if enabled_cases:
-        steps = []
-        for case in enabled_cases:
-            test_steps = sorted(case.get("test_steps") or [], key=lambda s: s.get("step_order", 0))
-            for t_step in test_steps:
-                target_label = t_step.get("url") or t_step.get("target") or ""
-                method = t_step.get("method")
-                action_type = t_step.get("action_type")
-                steps.append({
-                    "step_id": t_step.get("step_id", ""),
-                    "action_type": action_type,
-                    "target": t_step.get("target"),
-                    "value": t_step.get("value"),
-                    "expected": t_step.get("expected"),
-                    "input_value": t_step.get("value") or t_step.get("expected") or "",
-                    "timeout_seconds": (t_step.get("timeout_ms") or 30000) / 1000,
-                    "optional": bool(t_step.get("optional")),
-                    "method": method,
-                    "url": t_step.get("url"),
-                    "headers": t_step.get("headers") or {},
-                    "query_params": t_step.get("query_params") or {},
-                    "body_json": t_step.get("body_json"),
-                    "expected_status": t_step.get("expected_status"),
-                    "expected_json_path": t_step.get("expected_json_path"),
-                    "expected_value": t_step.get("expected_value"),
-                    "budget_ms": t_step.get("budget_ms"),
-                    "warn_ms": t_step.get("warn_ms"),
-                    "metric_name": t_step.get("metric_name"),
-                    "description": f"[{case.get('title') or 'Case'}] {method + ' ' if method else ''}{action_type} {target_label}".strip(),
-                })
-                step_case_ids.append(case.get("test_case_id"))
-    else:
-        steps = pack_row.get("steps") or []
+    steps, step_case_ids = build_pack_steps(pack_row, storage.list_test_cases(pack_id))
 
     options = RunOptions(
         watch=body.watch,

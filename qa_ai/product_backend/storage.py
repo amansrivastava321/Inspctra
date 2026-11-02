@@ -576,6 +576,9 @@ class ProductStorage:
             "ALTER TABLE validation_packs ADD COLUMN schedule_enabled INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE validation_packs ADD COLUMN next_run_at TEXT",
             "ALTER TABLE validation_packs ADD COLUMN last_scheduled_run_at TEXT",
+            "ALTER TABLE validation_packs ADD COLUMN schedule_timezone TEXT NOT NULL DEFAULT 'UTC'",
+            "ALTER TABLE validation_packs ADD COLUMN continuous INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE validation_packs ADD COLUMN notify_webhook_url TEXT",
             "CREATE TABLE IF NOT EXISTS ai_evaluation_notes ("
             "    evaluation_id            TEXT PRIMARY KEY,"
             "    run_id                   TEXT NOT NULL,"
@@ -972,8 +975,8 @@ class ProductStorage:
     def create_validation_pack(self, rec: Dict[str, Any]) -> Dict[str, Any]:
         self._execute(
             "INSERT INTO validation_packs "
-            "(id, project_id, name, description, steps, app_id, schedule, schedule_enabled, next_run_at, last_scheduled_run_at, created_at, updated_at, provenance) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(id, project_id, name, description, steps, app_id, schedule, schedule_enabled, next_run_at, last_scheduled_run_at, created_at, updated_at, provenance, schedule_timezone, continuous, notify_webhook_url) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 rec["id"], rec["project_id"], rec["name"],
                 rec.get("description", ""), self._j(rec.get("steps", [])),
@@ -984,6 +987,9 @@ class ProductStorage:
                 rec.get("last_scheduled_run_at"),
                 rec["created_at"], rec["updated_at"],
                 self._provenance_value(rec.get("provenance")),
+                rec.get("schedule_timezone") or "UTC",
+                1 if rec.get("continuous") else 0,
+                rec.get("notify_webhook_url") or None,
             ),
         )
         return rec
@@ -1022,6 +1028,7 @@ class ProductStorage:
             r["steps"] = self._uj(r.get("steps")) or []
             r["provenance"] = self._provenance_value(r.get("provenance"))
             r["schedule_enabled"] = bool(r.get("schedule_enabled"))
+            r["continuous"] = bool(r.get("continuous"))
         return rows
 
     def get_validation_pack(self, pack_id: str) -> Optional[Dict[str, Any]]:
@@ -1032,16 +1039,19 @@ class ProductStorage:
             row["steps"] = self._uj(row.get("steps")) or []
             row["provenance"] = self._provenance_value(row.get("provenance"))
             row["schedule_enabled"] = bool(row.get("schedule_enabled"))
+            row["continuous"] = bool(row.get("continuous"))
         return row
 
     def update_validation_pack(self, pack_id: str, fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         # Coerce schedule_enabled to int for SQLite
-        if "schedule_enabled" in fields and fields["schedule_enabled"] is not None:
-            fields["schedule_enabled"] = 1 if fields["schedule_enabled"] else 0
+        for flag in ("schedule_enabled", "continuous"):
+            if flag in fields and fields[flag] is not None:
+                fields[flag] = 1 if fields[flag] else 0
         sets, params = self._build_update(
             fields,
             ["name", "description", "steps", "app_id", "provenance",
-             "schedule", "schedule_enabled", "next_run_at", "last_scheduled_run_at"],
+             "schedule", "schedule_enabled", "next_run_at", "last_scheduled_run_at",
+             "schedule_timezone", "continuous", "notify_webhook_url"],
         )
         if not sets:
             return self.get_validation_pack(pack_id)
@@ -1084,6 +1094,7 @@ class ProductStorage:
             r["steps"] = self._uj(r.get("steps")) or []
             r["provenance"] = self._provenance_value(r.get("provenance"))
             r["schedule_enabled"] = bool(r.get("schedule_enabled"))
+            r["continuous"] = bool(r.get("continuous"))
         return rows
 
     def delete_validation_pack(self, pack_id: str) -> bool:
