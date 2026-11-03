@@ -37,6 +37,9 @@ def create_app(
         base_url=body.base_url,
         description=body.description,
         tags=body.tags,
+        app_identifier=body.app_identifier,
+        app_path=body.app_path,
+        device_name=body.device_name,
         provenance=Provenance.REAL_EXECUTION,
     )
     storage.create_app_target(rec.model_dump())

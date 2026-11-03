@@ -28,7 +28,12 @@ from typing import Any, Dict, List, Optional, Sequence
 from qa_ai.product_backend.event_stream import EventStream
 from qa_ai.product_backend.notifier import notify_scheduled_failure
 from qa_ai.product_backend.pack_steps import build_pack_steps
-from qa_ai.product_backend.models import Provenance, SUPPORTED_API_ACTIONS, SUPPORTED_WEB_ACTIONS
+from qa_ai.product_backend.models import (
+    Provenance,
+    SUPPORTED_API_ACTIONS,
+    SUPPORTED_APP_ACTIONS,
+    SUPPORTED_WEB_ACTIONS,
+)
 from qa_ai.product_backend.run_event_recorder import RunEventRecorder
 
 logger = logging.getLogger(__name__)
@@ -74,11 +79,30 @@ def classify_action_family(action_type: Any, app_type: Optional[str] = None) -> 
         return "api"
     if action in SUPPORTED_WEB_ACTIONS:
         return "browser"
+    if action in SUPPORTED_APP_ACTIONS:
+        return "native"
     if action in _GENERIC_DRY_RUN_ACTIONS:
         return "dry_run"
     if any(marker in action.lower() for marker in _UNAVAILABLE_ACTION_MARKERS):
         return "unavailable"
     return "unavailable"
+
+
+class _NativeSession:
+    """The one desktop/mobile app a run is driving."""
+
+    def __init__(self) -> None:
+        self.engine: Any = None
+        self.started = False
+        self.blocked = ""  # why app steps cannot run (missing tool/permission); checked once per run
+
+    def close(self) -> None:
+        if self.engine is not None and self.started:
+            try:
+                self.engine.stop()
+            except Exception:
+                logger.warning("RunManager: stopping the native app failed", exc_info=True)
+        self.started = False
 
 
 def compute_run_provenance(values: List[Any]) -> Provenance:
@@ -114,8 +138,11 @@ class RunManager:
         storage: Any,
         artifact_index: Optional[Any] = None,
         event_recorder: Optional[RunEventRecorder] = None,
+        native_engine_factory: Optional[Any] = None,
     ) -> None:
         self._stream = event_stream
+        # platform -> NativeEngine; replaceable so tests can drive fake devices.
+        self._native_engine_factory = native_engine_factory
         self._storage = storage
         self._artifact_index = artifact_index
         self._event_recorder = event_recorder
@@ -236,6 +263,7 @@ class RunManager:
         case_ids: Sequence[Optional[str]] = options.case_ids if len(options.case_ids) == len(steps) else ()
         engine = None
         api_engine = None
+        native = _NativeSession()
         previous_case: Optional[str] = None
         try:
             self._storage.update_run_status(
@@ -254,6 +282,7 @@ class RunManager:
 
             for idx, step in enumerate(steps):
                 if cancel.is_set():
+                    native.close()
                     self._finalize_run(run_id, "cancelled", passed, failed, total)
                     return
 
@@ -330,6 +359,8 @@ class RunManager:
                         else:
                             result = self._run_step_real(step, engine, run_id, step_num, total, cancel, app_target)
                             result.setdefault("provenance", Provenance.REAL_EXECUTION)
+                elif family == "native":
+                    result = self._run_app_step(step, native, run_id, step_num, app_target, options)
                 elif family == "dry_run":
                     result = self._run_step_safe(step, app_target, cancel)
                 else:
@@ -396,6 +427,7 @@ class RunManager:
             self._storage.update_run_provenance(
                 run_id, compute_run_provenance(step_provenances)
             )
+            native.close()  # close the app/emulator before the run reports that it is finished
             final_status = "cancelled" if cancel.is_set() else ("failed" if failed > 0 else "completed")
             self._finalize_run(run_id, final_status, passed, failed, total)
 
@@ -416,11 +448,151 @@ class RunManager:
                     engine.close()
                 except Exception:
                     pass
+            native.close()
             self._stream.close_run(run_id)
             self._notify_scheduled_failure(run_id, options)
             with self._lock:
                 self._threads.pop(run_id, None)
                 self._cancel_flags.pop(run_id, None)
+
+    # ── desktop and mobile app steps ─────────────────────────────────────────
+
+    def _run_app_step(
+        self,
+        step: Dict[str, Any],
+        native: "_NativeSession",
+        run_id: str,
+        step_num: int,
+        app_target: Dict[str, Any],
+        options: RunOptions,
+    ) -> Dict[str, Any]:
+        """Run one app_* step on a Mac/Windows app, an Android emulator/device or the iOS Simulator."""
+        from qa_ai.native_execution import (
+            AppSpec,
+            ElementNotFound,
+            NativeEngineError,
+            PLATFORM_LABELS,
+            engine_for,
+            normalize_platform,
+        )
+        from qa_ai.product_backend.routers.native import consent_is_complete
+
+        action = str(step.get("action_type") or "")
+        step_id = step.get("step_id", "")
+
+        def outcome(status: str, notes: str, evidence: Optional[List[str]] = None, ran: bool = True) -> Dict[str, Any]:
+            return {
+                "status": status, "notes": notes, "action_type": action, "step_id": step_id,
+                "evidence_ids": evidence or [],
+                "provenance": Provenance.REAL_EXECUTION if ran else Provenance.UNAVAILABLE,
+            }
+
+        platform = normalize_platform(app_target.get("app_type"))
+        if platform is None:
+            return outcome(
+                "capability_gap",
+                f"App steps need a Mac, Windows, Android or iOS app target; this target is {app_target.get('app_type')!r}.",
+                ran=False,
+            )
+        label = PLATFORM_LABELS[platform]
+        consent = self._storage.get_native_consent(platform)
+        if not consent_is_complete(consent, platform):
+            return outcome(
+                "capability_gap",
+                f"You have not allowed Inspectra to drive {label}s yet. Allow it in the Start run dialog.",
+                ran=False,
+            )
+        if options.scheduled and not consent.get("unattended"):
+            return outcome(
+                "capability_gap",
+                f"Scheduled runs only drive {label}s when you also allowed unattended runs for them.",
+                ran=False,
+            )
+        if native.blocked:
+            return outcome("capability_gap", native.blocked, ran=False)
+        if native.engine is None:
+            factory = self._native_engine_factory or engine_for
+            native.engine = factory(platform)
+            try:
+                missing = native.engine.missing()
+            except NativeEngineError as exc:
+                missing, native.blocked = [], str(exc)
+            if missing:
+                native.blocked = "Not ready to test " + label + "s: " + "; ".join(
+                    f"{r.label} is missing ({r.how_to_fix})" if r.how_to_fix else f"{r.label} is missing" for r in missing
+                )
+            if native.blocked:
+                return outcome("capability_gap", native.blocked, ran=False)
+
+        engine = native.engine
+        timeout = float(step.get("timeout_seconds") or 30)
+        target = str(step.get("target") or "").strip()
+        value = str(step.get("value") or step.get("input_value") or "")
+        mobile = platform in ("android", "ios")
+        notes = ""
+        status = "passed"
+        try:
+            if not native.started and action != "app_close":
+                spec = AppSpec(
+                    identifier=(target if action == "app_launch" and target else app_target.get("app_identifier") or ""),
+                    app_path=app_target.get("app_path") or "",
+                    device=app_target.get("device_name") or "",
+                    # Emulators and simulators run without a window unless the user chose to watch.
+                    headless=mobile and not options.watch,
+                )
+                self._publish_event(run_id, "notice", {"run_id": run_id, "message": f"Starting the {label}..."}, "info")
+                engine.start(spec, timeout=max(timeout, 300.0 if mobile else 60.0))
+                native.started = True
+                notes = f"Started {spec.identifier or spec.app_path} on {label}."
+            if action == "app_launch":
+                notes = notes or "The app is already running."
+            elif action == "app_tap":
+                element = engine.tap(target, timeout=timeout)
+                notes = f"Tapped {element.label or element.text or element.identifier or target!r}."
+            elif action == "app_type":
+                if target:
+                    engine.tap(target, timeout=timeout)
+                engine.type_text(value)
+                notes = f"Typed {len(value)} characters" + (f" into {target!r}." if target else ".")
+            elif action == "app_press":
+                key = value or target
+                engine.press(key)
+                notes = f"Pressed {key}."
+            elif action in ("app_assert_text", "app_wait_for_text"):
+                wanted = value or str(step.get("expected") or "") or target
+                if engine.wait_for_text(wanted, timeout=timeout):
+                    notes = f"Found {wanted!r} on screen."
+                else:
+                    status = "failed"
+                    seen = ", ".join(repr(t[:40]) for t in engine.visible_text()[:8])
+                    notes = f"{wanted!r} did not appear within {timeout:g} s. On screen: {seen or 'nothing readable'}."
+            elif action == "app_screenshot":
+                notes = "Captured the screen."
+            elif action == "app_close":
+                engine.stop()
+                native.started = False
+                notes = "Closed the app."
+        except ElementNotFound as exc:
+            status, notes = "failed", str(exc)
+        except NativeEngineError as exc:
+            status, notes = "error", str(exc)
+        except Exception as exc:  # a platform tool misbehaving must not take the run down
+            logger.warning("RunManager: app step %s raised: %s", action, exc, exc_info=True)
+            status, notes = "error", f"{type(exc).__name__}: {exc}"
+
+        evidence: List[str] = []
+        if native.started:
+            try:
+                shot = engine.screenshot()
+                if shot:
+                    evidence_id = self._write_blob_evidence(
+                        run_id, step_num, step_id, "screenshot", shot, "png", "image/png", app_target,
+                    )
+                    if evidence_id:
+                        evidence.append(evidence_id)
+            except Exception as exc:
+                logger.warning("RunManager: app screenshot failed: %s", exc)
+        return outcome(status, notes, evidence)
 
     def _notify_scheduled_failure(self, run_id: str, options: RunOptions) -> None:
         """Tell the pack's webhook (if it has one) that a scheduled run failed. Never raises."""

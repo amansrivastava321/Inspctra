@@ -100,23 +100,17 @@ describe('AddAppPage', () => {
     expect(save).toBeDisabled();
   });
 
-  it('shows Mobile and Desktop as disabled Preview app types', async () => {
+  it('offers Mac, Windows, Android and iOS apps alongside web and API', async () => {
     mockGet.mockResolvedValue([
       { id: 'proj-1', name: 'My Project', description: '', created_at: '' },
     ]);
     renderPage();
     await goToStep2();
 
-    for (const label of ['Mobile', 'Desktop']) {
-      const option = screen.getByRole('button', { name: `${label} Preview` });
-      expect(option).toBeDisabled();
-      expect(option).toHaveAttribute(
-        'title',
-        'This feature is planned for a future release. Runs will be unavailable.',
-      );
+    for (const label of ['Web', 'API / Service', 'Mac app', 'Windows app', 'Android app', 'iOS app']) {
+      expect(screen.getByRole('button', { name: label })).not.toBeDisabled();
     }
-    expect(screen.getByRole('button', { name: 'Web' })).not.toBeDisabled();
-    expect(screen.getByRole('button', { name: 'API / Service' })).not.toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Preview/ })).not.toBeInTheDocument();
   });
 
   it('calls POST /api/apps with correct payload when saved', async () => {
@@ -145,6 +139,50 @@ describe('AddAppPage', () => {
         app_type: 'web',
       }));
     });
+  });
+
+  it('saves an Android app with its package, APK and emulator, and needs the package first', async () => {
+    mockGet.mockResolvedValue([
+      { id: 'proj-1', name: 'My Project', description: '', created_at: '' },
+    ]);
+    mockPost.mockResolvedValue({ id: 'app-droid', name: 'Shop', app_type: 'android', project_id: 'proj-1' });
+
+    renderPage();
+    await goToStep2();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Android app' }));
+    fireEvent.change(screen.getByPlaceholderText('My App'), { target: { value: 'Shop' } });
+    const save = screen.getByRole('button', { name: /save.*connect/i });
+    expect(save).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText('com.example.app'), { target: { value: 'com.shop.app' } });
+    fireEvent.change(screen.getByPlaceholderText('/builds/app-debug.apk'), { target: { value: '/b/shop.apk' } });
+    fireEvent.change(screen.getByPlaceholderText('Pixel_8_API_35'), { target: { value: 'Pixel_8' } });
+    expect(screen.getByText(/Nothing is controlled until you agree/)).toBeInTheDocument();
+    fireEvent.click(save);
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/apps', expect.objectContaining({
+        app_type: 'android',
+        app_identifier: 'com.shop.app',
+        app_path: '/b/shop.apk',
+        device_name: 'Pixel_8',
+      }));
+    });
+  });
+
+  it('asks a Mac app for its name or bundle id and has no device field', async () => {
+    mockGet.mockResolvedValue([
+      { id: 'proj-1', name: 'My Project', description: '', created_at: '' },
+    ]);
+    renderPage();
+    await goToStep2();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mac app' }));
+
+    expect(screen.getByPlaceholderText('TextEdit or com.apple.TextEdit')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Pixel_8_API_35')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('http://localhost:3000')).not.toBeInTheDocument();
   });
 
   it('shows real app ID in success screen (no fake done state)', async () => {

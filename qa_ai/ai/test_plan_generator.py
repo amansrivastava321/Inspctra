@@ -14,10 +14,12 @@ from qa_ai.ai.prompt_safety import make_safe
 from qa_ai.ai.llm_router import get_router, ModelCapability
 from qa_ai.ai.model_profiles import RoutingComponent
 from qa_ai.ai.model_health import check_ollama_health, probe_ollama_chat_ready
+from qa_ai.native_execution import normalize_platform
 from qa_ai.product_backend.models import (
     AITestPlanPreview,
     AIProposedTestCase,
     AIProposedTestStep,
+    SUPPORTED_APP_ACTIONS,
     SUPPORTED_TEST_STEP_ACTIONS,
 )
 from qa_ai.product_backend.storage import ProductStorage
@@ -110,7 +112,15 @@ class AITestPlanGenerator:
             prompt_parts.extend(existing_desc)
 
         prompt_parts.append("Supported Action Types:")
-        prompt_parts.append(", ".join(SUPPORTED_TEST_STEP_ACTIONS))
+        # Desktop/mobile apps are driven with app_* steps; websites and APIs with the browser/HTTP steps.
+        if normalize_platform(app_type or (app_target or {}).get("app_type")):
+            prompt_parts.append(", ".join(sorted(SUPPORTED_APP_ACTIONS)))
+            prompt_parts.append(
+                "App steps: app_launch starts the app; app_tap/app_type take the on-screen label in target; "
+                "app_type/app_assert_text take the text in value; app_press takes a key name (enter, tab, back, home)."
+            )
+        else:
+            prompt_parts.append(", ".join(sorted(SUPPORTED_TEST_STEP_ACTIONS - SUPPORTED_APP_ACTIONS)))
 
         prompt_parts.append(
             "Instructions:\n"

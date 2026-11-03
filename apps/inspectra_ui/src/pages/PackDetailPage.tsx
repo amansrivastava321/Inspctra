@@ -57,6 +57,15 @@ import { PreviewBadge } from '../components/PreviewBadge';
 import { CapabilityTypeSelector } from '../components/validation/CapabilityTypeSelector';
 import { SchedulePanel } from '../components/validation/SchedulePanel';
 import {
+  APP_ACTIONS,
+  appNeedsTarget,
+  appNeedsValue,
+  appTargetLabel,
+  appTargetPlaceholder,
+  appValueLabel,
+  appValuePlaceholder,
+} from '../config/native';
+import {
   hasPreviewSteps,
   isPreviewAction,
   isPreviewAppType,
@@ -218,6 +227,7 @@ const ACTION_TYPES = [
   'assert_no_critical_security_findings',
   'assert_security_headers_present',
   'assert_cookie_flags_secure',
+  ...APP_ACTIONS,
 ];
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
@@ -237,10 +247,10 @@ const isSecurityAction = (action: string) =>
   ['passive_security_check', 'assert_no_critical_security_findings', 'assert_security_headers_present', 'assert_cookie_flags_secure'].includes(action);
 
 const isTargetNeeded = (action: string) =>
-  ['navigate', 'click', 'type', 'select', 'press', 'wait_for_selector', 'assert_visible', 'assert_text_contains', 'check_accessibility', 'assert_accessibility', 'accessibility_scan', 'assert_no_critical_a11y_violations', 'assert_no_a11y_violations', 'assert_visual_match', 'visual_capture', 'visual_compare', 'passive_security_check', 'assert_no_critical_security_findings', 'assert_security_headers_present', 'assert_cookie_flags_secure'].includes(action) || isHeaderAssertAction(action);
+  ['navigate', 'click', 'type', 'select', 'press', 'wait_for_selector', 'assert_visible', 'assert_text_contains', 'check_accessibility', 'assert_accessibility', 'accessibility_scan', 'assert_no_critical_a11y_violations', 'assert_no_a11y_violations', 'assert_visual_match', 'visual_capture', 'visual_compare', 'passive_security_check', 'assert_no_critical_security_findings', 'assert_security_headers_present', 'assert_cookie_flags_secure'].includes(action) || isHeaderAssertAction(action) || appNeedsTarget(action);
 
 const isValueNeeded = (action: string) =>
-  ['type', 'select', 'press', 'assert_visual_match', 'visual_capture', 'visual_compare', 'passive_security_check', 'assert_no_critical_security_findings', 'assert_security_headers_present', 'assert_cookie_flags_secure'].includes(action);
+  ['type', 'select', 'press', 'assert_visual_match', 'visual_capture', 'visual_compare', 'passive_security_check', 'assert_no_critical_security_findings', 'assert_security_headers_present', 'assert_cookie_flags_secure'].includes(action) || appNeedsValue(action);
 
 const isExpectedNeeded = (action: string) =>
   ['assert_text_contains', 'assert_url_contains', 'assert_title_contains', 'assert_visual_match', 'visual_compare', 'passive_security_check', 'assert_no_critical_security_findings', 'assert_security_headers_present', 'assert_cookie_flags_secure'].includes(action);
@@ -794,7 +804,7 @@ function TestCaseRow({
                           {isTargetNeeded(editForm.action_type || '') && (
                             <div>
                               <label style={{ fontSize: 9, color: P.textMute, fontFamily: F.mono }}>
-                                {isHeaderAssertAction(editForm.action_type || '') ? 'HEADER NAME' : (['navigate', 'check_accessibility', 'assert_accessibility', 'accessibility_scan', 'assert_no_critical_a11y_violations', 'assert_no_a11y_violations'].includes(editForm.action_type || '') || isSecurityAction(editForm.action_type || '')) ? 'URL / PATH (OPTIONAL)' : isVisualAction(editForm.action_type || '') ? 'CSS SELECTOR (OPTIONAL)' : 'SELECTOR'}
+                                {appTargetLabel(editForm.action_type || '') ?? (isHeaderAssertAction(editForm.action_type || '') ? 'HEADER NAME' : (['navigate', 'check_accessibility', 'assert_accessibility', 'accessibility_scan', 'assert_no_critical_a11y_violations', 'assert_no_a11y_violations'].includes(editForm.action_type || '') || isSecurityAction(editForm.action_type || '')) ? 'URL / PATH (OPTIONAL)' : isVisualAction(editForm.action_type || '') ? 'CSS SELECTOR (OPTIONAL)' : 'SELECTOR')}
                               </label>
                               <input
                                 type="text"
@@ -811,7 +821,7 @@ function TestCaseRow({
                           {isValueNeeded(editForm.action_type || '') && (
                             <div>
                               <label style={{ fontSize: 9, color: P.textMute, fontFamily: F.mono }}>
-                                {isVisualAction(editForm.action_type || '') ? 'BASELINE KEY / NAME' : isSecurityAction(editForm.action_type || '') ? 'SEVERITY THRESHOLD (OPTIONAL)' : 'VALUE / KEY'}
+                                {appValueLabel(editForm.action_type || '') ?? (isVisualAction(editForm.action_type || '') ? 'BASELINE KEY / NAME' : isSecurityAction(editForm.action_type || '') ? 'SEVERITY THRESHOLD (OPTIONAL)' : 'VALUE / KEY')}
                               </label>
                               <input
                                 type="text"
@@ -1266,15 +1276,15 @@ function TestCaseRow({
                   {isTargetNeeded(newForm.action_type || 'navigate') && (
                     <div>
                       <label style={{ fontSize: 9, color: P.textMute, fontFamily: F.mono }}>
-                        {isHeaderAssertAction(newForm.action_type || 'navigate')
+                        {appTargetLabel(newForm.action_type || '') ?? (isHeaderAssertAction(newForm.action_type || 'navigate')
                           ? 'HEADER NAME'
-                          : (['navigate', 'check_accessibility', 'assert_accessibility', 'accessibility_scan', 'assert_no_critical_a11y_violations', 'assert_no_a11y_violations'].includes(newForm.action_type || '') || isSecurityAction(newForm.action_type || '')) ? 'URL / PATH (OPTIONAL)' : isVisualAction(newForm.action_type || '') ? 'CSS SELECTOR (OPTIONAL)' : 'SELECTOR'}
+                          : (['navigate', 'check_accessibility', 'assert_accessibility', 'accessibility_scan', 'assert_no_critical_a11y_violations', 'assert_no_a11y_violations'].includes(newForm.action_type || '') || isSecurityAction(newForm.action_type || '')) ? 'URL / PATH (OPTIONAL)' : isVisualAction(newForm.action_type || '') ? 'CSS SELECTOR (OPTIONAL)' : 'SELECTOR')}
                       </label>
                       <input
                         type="text"
-                        placeholder={isHeaderAssertAction(newForm.action_type || 'navigate')
+                        placeholder={appTargetPlaceholder(newForm.action_type || '') ?? (isHeaderAssertAction(newForm.action_type || 'navigate')
                           ? 'e.g. content-type'
-                          : (['navigate', 'check_accessibility', 'assert_accessibility', 'accessibility_scan', 'assert_no_critical_a11y_violations', 'assert_no_a11y_violations'].includes(newForm.action_type || '') || isSecurityAction(newForm.action_type || '')) ? 'e.g. /login' : isVisualAction(newForm.action_type || '') ? 'e.g. #hero-section' : 'e.g. #submit-btn'}
+                          : (['navigate', 'check_accessibility', 'assert_accessibility', 'accessibility_scan', 'assert_no_critical_a11y_violations', 'assert_no_a11y_violations'].includes(newForm.action_type || '') || isSecurityAction(newForm.action_type || '')) ? 'e.g. /login' : isVisualAction(newForm.action_type || '') ? 'e.g. #hero-section' : 'e.g. #submit-btn')}
                         value={newForm.target || ''}
                         onChange={e => setNewForm(prev => ({ ...prev, target: e.target.value }))}
                         style={{
@@ -1288,11 +1298,11 @@ function TestCaseRow({
                   {isValueNeeded(newForm.action_type || 'navigate') && (
                     <div>
                       <label style={{ fontSize: 9, color: P.textMute, fontFamily: F.mono }}>
-                        {isVisualAction(newForm.action_type || '') ? 'BASELINE KEY / NAME' : isSecurityAction(newForm.action_type || '') ? 'SEVERITY THRESHOLD (OPTIONAL)' : 'VALUE / KEY'}
+                        {appValueLabel(newForm.action_type || '') ?? (isVisualAction(newForm.action_type || '') ? 'BASELINE KEY / NAME' : isSecurityAction(newForm.action_type || '') ? 'SEVERITY THRESHOLD (OPTIONAL)' : 'VALUE / KEY')}
                       </label>
                       <input
                         type="text"
-                        placeholder={isVisualAction(newForm.action_type || '') ? 'e.g. homepage_hero' : isSecurityAction(newForm.action_type || '') ? 'e.g. critical' : 'e.g. my-username'}
+                        placeholder={appValuePlaceholder(newForm.action_type || '') ?? (isVisualAction(newForm.action_type || '') ? 'e.g. homepage_hero' : isSecurityAction(newForm.action_type || '') ? 'e.g. critical' : 'e.g. my-username')}
                         value={newForm.value || ''}
                         onChange={e => setNewForm(prev => ({ ...prev, value: e.target.value }))}
                         style={{

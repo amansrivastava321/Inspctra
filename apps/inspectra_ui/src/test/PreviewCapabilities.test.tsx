@@ -54,6 +54,9 @@ describe('preview capability policy', () => {
     expect(isPreviewAppType('desktop')).toBe(true);
     expect(isPreviewAppType('web')).toBe(false);
     expect(isPreviewAppType('api')).toBe(false);
+    for (const runnable of ['native_macos', 'native_windows', 'android', 'ios']) {
+      expect(isPreviewAppType(runnable)).toBe(false);
+    }
     // Schedules the scheduler can run are live; only free-text ones it cannot honour stay Preview.
     expect(isPreviewSchedule('nightly')).toBe(false);
     expect(isPreviewSchedule('hourly')).toBe(false);
@@ -82,12 +85,12 @@ describe('preview capability presentation', () => {
 
     for (const label of [
       'Web Test', 'API Test', 'Manual Test', 'Accessibility',
-      'Security Check', 'Performance Check', 'Visual Regression',
+      'Security Check', 'Performance Check', 'Visual Regression', 'Mobile App Test', 'Desktop App Test',
     ]) {
       expect(screen.getByRole('button', { name: label })).not.toBeDisabled();
     }
     for (const label of [
-      'Mobile Testing', 'Desktop Testing', 'Distributed Execution',
+      'Distributed Execution',
       'Chaos Engineering', 'CI/CD Integration', 'Enterprise Governance',
     ]) {
       const option = screen.getByRole('button', { name: `${label} Preview` });
