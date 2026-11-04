@@ -361,6 +361,30 @@ def test_ios_boots_the_simulator_headless_and_drives_the_app() -> None:
     assert runner.ran("xcrun simctl shutdown IPHONE")
 
 
+def test_ios_retries_when_the_accessibility_service_is_busy() -> None:
+    answers = iter([
+        fail("The simulator's accessibility service did not answer a frontmost request within 5.0s; retry the read."),
+        ok(IDB),
+    ])
+    runner = _ios()
+    runner.rules.insert(0, ("describe-all", lambda _a: next(answers)))
+    engine = IOSSimulatorEngine(runner, platform_name="darwin")
+    engine.start(AppSpec(identifier="com.example.app", headless=True))
+
+    assert [e.label for e in engine.elements()] == ["Continue", "Name"]
+
+
+def test_ios_does_not_retry_other_idb_errors() -> None:
+    runner = _ios()
+    runner.rules.insert(0, ("describe-all", fail("No such device")))
+    engine = IOSSimulatorEngine(runner, platform_name="darwin")
+    engine.start(AppSpec(identifier="com.example.app", headless=True))
+
+    with pytest.raises(NativeEngineError, match="No such device"):
+        engine.elements()
+    assert sum("describe-all" in " ".join(c) for c in runner.calls) == 1
+
+
 def test_ios_opens_the_simulator_window_when_watching() -> None:
     runner = _ios()
 

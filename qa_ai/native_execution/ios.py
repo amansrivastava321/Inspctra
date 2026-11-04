@@ -150,7 +150,15 @@ class IOSSimulatorEngine(NativeEngine):
             raise NativeEngineError(f"Could not launch {bundle}: {launched.err.strip()[-200:]}")
 
     def elements(self) -> List[UIElement]:
-        return parse_idb_elements(self._idb("ui", "describe-all", "--json").out)
+        # Just after a launch the simulator's accessibility service can be too busy to answer; idb says to retry.
+        for attempt in range(4):
+            try:
+                return parse_idb_elements(self._idb("ui", "describe-all", "--json").out)
+            except NativeEngineError as exc:
+                if attempt == 3 or "retry" not in str(exc).lower():
+                    raise
+                self.runner.sleep(1.5)
+        return []
 
     def tap_element(self, element: UIElement) -> None:
         self._idb("ui", "tap", str(int(round(element.x))), str(int(round(element.y))))
