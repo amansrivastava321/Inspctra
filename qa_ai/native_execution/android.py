@@ -182,6 +182,24 @@ class AndroidEngine(NativeEngine):
         launched = self._adb("shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1", timeout=60)
         if not launched.ok or "No activities found" in launched.out or "monkey aborted" in launched.out:
             raise NativeEngineError(f"Could not launch {package}; is it installed on the device?")
+        self._wait_until_settled(package)
+
+    def _wait_until_settled(self, package: str, timeout: float = 20.0) -> None:
+        """Wait until the app is on screen and two reads of the screen agree, so the first tap is not lost
+        while the device is still busy (seen on emulators just after boot)."""
+        deadline = self.runner.now() + timeout
+        previous = None
+        while self.runner.now() < deadline:
+            try:
+                elements = self.elements()
+                current = [(e.text, e.label, e.identifier, e.x, e.y) for e in elements]
+                on_screen = any(e.extra.get("package") == package for e in elements)
+            except NativeEngineError:
+                current, on_screen = None, False
+            if on_screen and current is not None and current == previous:
+                return
+            previous = current
+            self.runner.sleep(1.0)
 
     def _boot_emulator(self, avd: str, headless: bool, timeout: float) -> None:
         emulator = self._sdk_tool("emulator", "emulator")

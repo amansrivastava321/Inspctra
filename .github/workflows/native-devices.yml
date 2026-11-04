@@ -49,7 +49,11 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: python -m pytest tests/native_e2e/test_android_device.py -v -rs
+          # Give the freshly booted emulator time to finish its post-boot work before driving it.
+          script: |
+            adb wait-for-device
+            sleep 45
+            python -m pytest tests/native_e2e/test_android_device.py -v -rs
 
       - name: Upload screenshots
         if: always()

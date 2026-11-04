@@ -217,16 +217,29 @@ def test_typing_waits_until_a_text_field_has_focus() -> None:
     focused_xml = UI_XML.replace(
         'content-desc="Email" clickable="true"', 'content-desc="Email" clickable="true" focused="true"'
     )
-    dumps = iter([UI_XML, UI_XML, focused_xml])
-    runner = _android(extra=[("uiautomator dump /dev/tty", lambda _a: ok(next(dumps, focused_xml)))])
+    runner = _android()
     engine = AndroidEngine(runner)
     engine.start(AppSpec(identifier="com.example"))
+    dumps = iter([UI_XML, UI_XML, focused_xml])
+    runner.rules.insert(0, ("uiautomator dump /dev/tty", lambda _a: ok(next(dumps, focused_xml))))
+    before = len(runner.calls)
 
     engine.type_text("hello")
 
-    typed_at = next(i for i, c in enumerate(runner.calls) if "input text" in " ".join(c))
-    dumps_before = sum("uiautomator dump" in " ".join(c) for c in runner.calls[:typed_at])
-    assert dumps_before == 3  # it looked twice, saw no focused field, then typed once one had focus
+    calls = runner.calls[before:]
+    typed_at = next(i for i, c in enumerate(calls) if "input text" in " ".join(c))
+    assert sum("uiautomator dump" in " ".join(c) for c in calls[:typed_at]) == 3  # twice unfocused, then focused
+
+
+def test_launch_waits_until_the_app_is_on_screen_and_still() -> None:
+    other_app = UI_XML.replace('package="com.example"', 'package="com.android.launcher"')
+    moving = UI_XML.replace("[100,200][300,260]", "[100,210][300,270]")
+    dumps = iter([other_app, moving, UI_XML, UI_XML])
+    runner = _android(extra=[("uiautomator dump /dev/tty", lambda _a: ok(next(dumps, UI_XML)))])
+
+    AndroidEngine(runner).start(AppSpec(identifier="com.example"))
+
+    assert sum("uiautomator dump" in " ".join(c) for c in runner.calls) >= 4
 
 
 def test_typing_with_no_focused_field_fails_instead_of_typing_into_nothing() -> None:
