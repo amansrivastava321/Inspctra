@@ -144,7 +144,8 @@ class IOSSimulatorEngine(NativeEngine):
             installed = self.runner.run(["xcrun", "simctl", "install", self._udid, app.app_path], timeout=300)
             if not installed.ok:
                 raise NativeEngineError(f"Installing the app failed: {installed.err.strip()[-200:]}")
-        launched = self.runner.run(["xcrun", "simctl", "launch", self._udid, bundle], timeout=60)
+        # The first launch after a cold boot can take minutes on a slow machine.
+        launched = self.runner.run(["xcrun", "simctl", "launch", self._udid, bundle], timeout=max(60.0, timeout))
         if not launched.ok:
             raise NativeEngineError(f"Could not launch {bundle}: {launched.err.strip()[-200:]}")
 

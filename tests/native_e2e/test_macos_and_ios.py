@@ -40,7 +40,8 @@ def test_a_mac_app_is_driven_when_accessibility_is_allowed() -> None:
             [{"role": e.role, "label": e.label, "text": e.text, "id": e.identifier} for e in elements], indent=1,
         ).encode())
         save_artifact("macos-calculator-start.png", engine.screenshot() or b"")
-        for key in ("7", "Add", "2", "Equals"):
+        # Calculator's buttons are identified as Seven / Add / Two / Equals (seen on macOS 15 runners).
+        for key in ("Seven", "Add", "Two", "Equals"):
             try:
                 engine.tap(key, timeout=10)
             except ElementNotFound:

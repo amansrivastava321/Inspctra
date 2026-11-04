@@ -38,6 +38,11 @@ _KEY_CODES = {
     "enter": 36, "return": 36, "tab": 48, "space": 49, "backspace": 51, "delete": 51, "escape": 53, "esc": 53,
     "left": 123, "right": 124, "down": 125, "up": 126,
 }
+# Generic role descriptions macOS reports when a control has no label of its own.
+_ROLE_WORDS = frozenset({
+    "button", "text", "group", "split group", "edit field", "toolbar", "scroll area", "image", "window",
+    "close button", "zoom button", "minimize button", "full screen button", "",
+})
 _WHO = "the app that runs Inspectra (for example Terminal, iTerm or VS Code)"
 
 _LIST_JS = r"""
@@ -56,6 +61,8 @@ function run(argv) {
     try { o.desc = e.description() || ''; } catch (x) {}
     try { const v = e.value(); o.value = (v === null || v === undefined) ? '' : String(v); } catch (x) {}
     try { o.ident = e.attributes.byName('AXIdentifier').value() || ''; } catch (x) {}
+    try { o.axdesc = e.attributes.byName('AXDescription').value() || ''; } catch (x) {}
+    try { o.title = e.attributes.byName('AXTitle').value() || ''; } catch (x) {}
     try { const p = e.position(); const s = e.size(); o.x = p[0] + s[0] / 2; o.y = p[1] + s[1] / 2; } catch (x) {}
     out.push(o);
   }
@@ -112,16 +119,21 @@ def parse_element_list(payload: str) -> List[UIElement]:
     items = json.loads(payload or "[]")
     elements: List[UIElement] = []
     for item in items:
-        name, desc, value = item.get("name") or "", item.get("desc") or "", item.get("value") or ""
+        name, value = item.get("name") or "", item.get("value") or ""
+        # System Events' "description" is often just the role in words ("button", "text"); the real
+        # accessibility label lives in AXDescription / AXTitle.
+        role_words = item.get("desc") or ""
+        label = name or item.get("axdesc") or item.get("title") or ""
+        if not label and role_words.lower() not in _ROLE_WORDS:
+            label = role_words
         ident = item.get("ident") or ""
         elements.append(UIElement(
-            label=name or desc,
-            text=value if value != name else "",
-            # The accessibility identifier, else the description when the name took the label slot.
-            identifier=ident or (desc if name else ""),
+            label=label,
+            text=value if value != label else "",
+            identifier=ident,
             role=item.get("role") or "",
             x=item.get("x"), y=item.get("y"),
-            extra={"index": item.get("i"), "match": name or desc or value},
+            extra={"index": item.get("i"), "match": name or item.get("axdesc") or item.get("title") or role_words or value},
         ))
     return elements
 

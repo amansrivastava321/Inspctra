@@ -410,6 +410,23 @@ def test_mac_is_not_available_elsewhere() -> None:
     assert engine.request("accessibility") is False
 
 
+def test_mac_labels_come_from_the_accessibility_label_not_the_role_words() -> None:
+    # What macOS 15's Calculator really reports: no name, the role in words, and the label in AXDescription.
+    payload = json.dumps([
+        {"i": 0, "role": "AXButton", "name": "", "desc": "button", "axdesc": "7", "ident": "Seven", "x": 1, "y": 1},
+        {"i": 1, "role": "AXButton", "name": "", "desc": "button", "ident": "Add", "x": 2, "y": 2},
+        {"i": 2, "role": "AXStaticText", "name": "", "desc": "text", "value": "\u200e9", "x": 3, "y": 3},
+    ])
+
+    elements = parse_element_list(payload)
+
+    assert match_element(elements, "7").identifier == "Seven"
+    assert match_element(elements, "Seven").label == "7"
+    assert match_element(elements, "Add").extra["index"] == 1
+    assert match_element(elements, "button") is None  # the role word is not a label
+    assert any("9" in t for t in [e.text for e in elements])
+
+
 def test_mac_elements_come_from_the_accessibility_tree() -> None:
     elements = parse_element_list(MAC_ELEMENTS)
 
