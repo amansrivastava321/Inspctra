@@ -551,8 +551,9 @@ class RunManager:
                 notes = f"Tapped {element.label or element.text or element.identifier or target!r}."
             elif action == "app_type":
                 if target:
-                    engine.tap(target, timeout=timeout)
-                engine.type_text(value)
+                    engine.type_into(target, value, timeout=timeout)
+                else:
+                    engine.type_text(value)
                 notes = f"Typed {len(value)} characters" + (f" into {target!r}." if target else ".")
             elif action == "app_press":
                 key = value or target

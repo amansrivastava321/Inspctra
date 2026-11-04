@@ -23,8 +23,7 @@ def test_the_engine_drives_the_settings_app_on_a_real_emulator() -> None:
         assert engine.wait_for_text("Network", timeout=60), engine.visible_text()
         save_artifact("android-1-settings.png", engine.screenshot() or b"")
 
-        engine.tap("Search settings", timeout=20)
-        engine.type_text("display")
+        engine.type_into("Search settings", "display", timeout=20)
         assert engine.wait_for_text("display", timeout=20), engine.visible_text()
         shot = engine.screenshot()
         assert shot and shot.startswith(PNG_SIGNATURE)
@@ -44,8 +43,7 @@ def test_a_pack_runs_on_the_emulator_through_the_product_api(tmp_path: Path) -> 
         [
             {"action_type": "app_launch", "timeout_ms": 180000},
             {"action_type": "app_assert_text", "value": "Network", "timeout_ms": 60000},
-            {"action_type": "app_tap", "target": "Search settings", "timeout_ms": 20000},
-            {"action_type": "app_type", "value": "battery", "timeout_ms": 20000},
+            {"action_type": "app_type", "target": "Search settings", "value": "battery", "timeout_ms": 20000},
             {"action_type": "app_assert_text", "value": "battery", "timeout_ms": 20000},
             {"action_type": "app_press", "value": "back", "timeout_ms": 10000},
         ],

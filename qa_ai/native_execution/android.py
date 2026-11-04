@@ -235,9 +235,19 @@ class AndroidEngine(NativeEngine):
                 return False
             self.runner.sleep(0.3)
 
+    def type_into(self, label: str, text: str, timeout: float = 10.0) -> None:
+        # A tap can be dropped while the screen is still settling; tapping a text field twice is harmless.
+        element = self.find(label, timeout)
+        self.tap_element(element)
+        if not self._wait_for_focused_input(3.0):
+            self.tap_element(element)
+        self.type_text(text)
+
     def type_text(self, text: str) -> None:
         if text:
-            self._wait_for_focused_input()
+            if not self._wait_for_focused_input():
+                # Typing now would go nowhere and the step would look like it worked.
+                raise NativeEngineError("No text field has focus, so nothing was typed. Tap the field first.")
             result = self._adb("shell", "input", "text", escape_input_text(text), timeout=30)
             if not result.ok:
                 raise NativeEngineError("Typing on the device failed.")

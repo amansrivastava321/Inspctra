@@ -136,8 +136,9 @@ def test_android_launches_on_the_connected_device_and_drives_it() -> None:
 
     engine.start(AppSpec(identifier="com.example"))
     engine.tap("Sign in")
-    engine.tap("Email")
-    engine.type_text("me@example.com")
+    runner.rules.insert(0, ("uiautomator dump /dev/tty", ok(UI_XML.replace(
+        'content-desc="Email" clickable="true"', 'content-desc="Email" clickable="true" focused="true"'))))
+    engine.type_into("Email", "me@example.com")
     engine.press("enter")
 
     assert runner.ran("-s emulator-5554 shell monkey -p com.example -c android.intent.category.LAUNCHER 1")
@@ -228,15 +229,51 @@ def test_typing_waits_until_a_text_field_has_focus() -> None:
     assert dumps_before == 3  # it looked twice, saw no focused field, then typed once one had focus
 
 
-def test_typing_still_happens_when_no_field_ever_takes_focus() -> None:
+def test_typing_with_no_focused_field_fails_instead_of_typing_into_nothing() -> None:
     runner = _android()
     engine = AndroidEngine(runner)
     engine.start(AppSpec(identifier="com.example"))
 
-    engine.type_text("hello")
+    with pytest.raises(NativeEngineError, match="No text field has focus"):
+        engine.type_text("hello")
 
-    assert runner.ran("input text hello")
-    assert runner.clock >= 5  # it waited for focus before giving up and typing anyway
+    assert not runner.ran("input text")
+
+
+def test_typing_into_a_field_taps_it_again_when_the_first_tap_is_dropped() -> None:
+    focused_xml = UI_XML.replace(
+        'content-desc="Email" clickable="true"', 'content-desc="Email" clickable="true" focused="true"'
+    )
+    state = {"taps": 0}
+
+    def dump(_args):
+        return ok(focused_xml if state["taps"] >= 2 else UI_XML)
+
+    def tap(_args):
+        state["taps"] += 1
+        return ok()
+
+    runner = _android(extra=[("uiautomator dump /dev/tty", dump), ("input tap", tap)])
+    engine = AndroidEngine(runner)
+    engine.start(AppSpec(identifier="com.example"))
+
+    engine.type_into("Email", "me@example.com")
+
+    assert state["taps"] == 2
+    assert runner.ran("input text me@example.com")
+
+
+def test_typing_into_a_field_that_takes_focus_taps_once() -> None:
+    focused_xml = UI_XML.replace(
+        'content-desc="Email" clickable="true"', 'content-desc="Email" clickable="true" focused="true"'
+    )
+    runner = _android(extra=[("uiautomator dump /dev/tty", ok(focused_xml))])
+    engine = AndroidEngine(runner)
+    engine.start(AppSpec(identifier="com.example"))
+
+    engine.type_into("Email", "x")
+
+    assert sum("input tap" in " ".join(c) for c in runner.calls) == 1
 
 
 def test_android_tap_waits_for_the_element_then_gives_up() -> None:

@@ -220,6 +220,11 @@ class NativeEngine(ABC):
         self.tap_element(element)
         return element
 
+    def type_into(self, label: str, text: str, timeout: float = 10.0) -> None:
+        """Tap the field labelled `label`, then type into it."""
+        self.tap(label, timeout)
+        self.type_text(text)
+
     def wait_for_text(self, text: str, timeout: float = 10.0, poll: float = 0.5) -> bool:
         wanted = (text or "").strip().lower()
         deadline = self.runner.now() + max(0.0, timeout)
