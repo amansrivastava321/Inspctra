@@ -13,6 +13,7 @@ import LocalFolderBridge from '../components/local/LocalFolderBridge';
 import { useWorkspaceNavigate } from '../state/WorkspaceModeContext';
 import { PreviewBadge } from '../components/PreviewBadge';
 import { isPreviewAppType, PREVIEW_TOOLTIP } from '../config/capabilities';
+import { isNativeAppType, NATIVE_FIELDS } from '../config/native';
 
 // ── Recent source folders (localStorage) ─────────────────────────────────────
 
@@ -62,10 +63,12 @@ function eraseRecentFolder(path: string): RecentFolder[] {
 const STEPS = ['Select project', 'Source', 'Review & confirm', 'Done'];
 
 const APP_TYPES = [
-  { id: 'web',     label: 'Web',           sub: 'Browser-based app',    icon: '🌐' },
-  { id: 'desktop', label: 'Desktop',       sub: 'macOS, Windows, Linux', icon: '💻' },
-  { id: 'mobile',  label: 'Mobile',        sub: 'iOS or Android app',   icon: '📱' },
-  { id: 'api',     label: 'API / Service', sub: 'REST, GraphQL, gRPC',  icon: '🔌' },
+  { id: 'web',            label: 'Web',           sub: 'Browser-based app',             icon: '🌐' },
+  { id: 'api',            label: 'API / Service', sub: 'REST, GraphQL, gRPC',           icon: '🔌' },
+  { id: 'native_macos',   label: 'Mac app',       sub: 'Driven through Accessibility',  icon: '💻' },
+  { id: 'native_windows', label: 'Windows app',   sub: 'Driven through UI Automation',  icon: '🪟' },
+  { id: 'android',        label: 'Android app',   sub: 'Emulator or connected phone',   icon: '🤖' },
+  { id: 'ios',            label: 'iOS app',       sub: 'iOS Simulator (needs a Mac)',   icon: '📱' },
 ];
 
 const SOURCE_TABS: { id: SourceType; label: string; testId: string }[] = [
@@ -195,7 +198,9 @@ export default function AddAppPage() {
   const [appType, setAppType] = useState('');
   const [form, setForm] = useState({
     name: '', base_url: '', launch_command: '', description: '',
+    app_identifier: '', app_path: '', device_name: '',
   });
+  const nativeType = isNativeAppType(appType) ? appType : null;
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [savedApp, setSavedApp] = useState<AppTarget | null>(null);
@@ -328,7 +333,7 @@ export default function AddAppPage() {
     setSaveError('');
     try {
       let app: AppTarget;
-      if (discoveryResult?.id && discoveryResult.status !== 'unsupported') {
+      if (discoveryResult?.id && discoveryResult.status !== 'unsupported' && !nativeType) {
         // Create via discovery endpoint (records source info)
         const payload: Record<string, unknown> = {
           discovery_id: discoveryResult.id,
@@ -348,6 +353,11 @@ export default function AddAppPage() {
           description: form.description.trim(),
         };
         if (form.base_url.trim()) payload.base_url = form.base_url.trim();
+        if (nativeType) {
+          payload.app_identifier = form.app_identifier.trim();
+          if (form.app_path.trim()) payload.app_path = form.app_path.trim();
+          if (form.device_name.trim()) payload.device_name = form.device_name.trim();
+        }
         app = await post<AppTarget>('/apps', payload);
       }
       setSavedApp(app);
@@ -360,7 +370,7 @@ export default function AddAppPage() {
   };
 
   const handleSave = async () => {
-    if (!selectedProjectId || !form.name.trim() || !appType) return;
+    if (!selectedProjectId || !form.name.trim() || !appType || (nativeType && !form.app_identifier.trim())) return;
     setDupWarning('');
     try {
       const existing = await get<AppTarget[]>(`/apps?project_id=${selectedProjectId}`);
@@ -1010,6 +1020,38 @@ export default function AddAppPage() {
                   mono
                 />
               )}
+              {nativeType && (
+                <>
+                  <Field
+                    label={NATIVE_FIELDS[nativeType].identifierLabel}
+                    value={form.app_identifier}
+                    onChange={v => setForm(f => ({ ...f, app_identifier: v }))}
+                    placeholder={NATIVE_FIELDS[nativeType].identifierPlaceholder}
+                    required
+                    mono
+                  />
+                  <Field
+                    label={NATIVE_FIELDS[nativeType].pathLabel}
+                    value={form.app_path}
+                    onChange={v => setForm(f => ({ ...f, app_path: v }))}
+                    placeholder={NATIVE_FIELDS[nativeType].pathPlaceholder}
+                    mono
+                  />
+                  {NATIVE_FIELDS[nativeType].deviceLabel && (
+                    <Field
+                      label={NATIVE_FIELDS[nativeType].deviceLabel!}
+                      value={form.device_name}
+                      onChange={v => setForm(f => ({ ...f, device_name: v }))}
+                      placeholder={NATIVE_FIELDS[nativeType].devicePlaceholder}
+                      mono
+                    />
+                  )}
+                  <div style={{ fontSize: 11, color: P.textMute }}>
+                    Before the first run Inspectra shows what it needs (tools and system permissions) and asks you to
+                    allow it to drive this kind of app. Nothing is controlled until you agree.
+                  </div>
+                </>
+              )}
               {discoveryResult?.status === 'complete' && (
                 <Field
                   label="Launch command"
@@ -1069,7 +1111,7 @@ export default function AddAppPage() {
               <Btn
                 variant="primary"
                 onClick={handleSave}
-                disabled={!form.name.trim() || !appType || saving}
+                disabled={!form.name.trim() || !appType || (nativeType !== null && !form.app_identifier.trim()) || saving}
               >
                 {saving ? 'Saving…' : 'Save & connect →'}
               </Btn>

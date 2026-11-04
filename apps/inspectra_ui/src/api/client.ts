@@ -64,7 +64,13 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 
     if (!resp.ok) {
       let detail = `${resp.status} ${resp.statusText}`;
-      try { detail = (await resp.json()).detail || detail; } catch { /* ignore */ }
+      try {
+        const raw = (await resp.json()).detail;
+        // A structured detail ({code, message, ...}) shows its message; FastAPI validation errors are lists.
+        if (typeof raw === 'string' && raw) detail = raw;
+        else if (raw && typeof raw === 'object' && !Array.isArray(raw) && typeof raw.message === 'string') detail = raw.message;
+        else if (raw) detail = JSON.stringify(raw);
+      } catch { /* ignore */ }
       if (resp.status >= 500) setStatus('degraded');
       throw new ApiError(resp.status, detail);
     }
@@ -86,6 +92,7 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 export const get  = <T>(path: string)                 => req<T>('GET',    path);
 export const post = <T>(path: string, body?: unknown) => req<T>('POST',   path, body);
 export const patch= <T>(path: string, body?: unknown) => req<T>('PATCH',  path, body);
+export const put  = <T>(path: string, body?: unknown) => req<T>('PUT',    path, body);
 export const del  = (path: string)                    => req<void>('DELETE', path);
 
 // ── Health check ──────────────────────────────────────────────────────────────

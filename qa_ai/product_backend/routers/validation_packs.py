@@ -13,16 +13,19 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from qa_ai.product_backend.artifact_index import ArtifactIndex
 from qa_ai.product_backend.dependencies import get_artifact_index, get_run_manager, get_storage
+from qa_ai.native_execution import PLATFORM_LABELS, normalize_platform
 from qa_ai.product_backend.notifier import is_valid_webhook_url, mask_webhook_url
 from qa_ai.product_backend.pack_steps import build_pack_steps
 from qa_ai.product_backend.models import (
     LiveRunRecord,
     Provenance,
     StartRunRequest,
+    SUPPORTED_APP_ACTIONS,
     ValidationPack,
     ValidationPackCreate,
     ValidationPackUpdate,
 )
+from qa_ai.product_backend.routers.native import consent_is_complete
 from qa_ai.product_backend.run_manager import DEFAULT_WATCH_SLOW_MO_MS, RunManager, RunOptions
 from qa_ai.product_backend.scheduler import (
     MAX_INTERVAL_HOURS,
@@ -57,6 +60,27 @@ def _validate_schedule_fields(fields: dict) -> None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="notify_webhook_url must be an http(s) URL.",
+        )
+
+
+def _require_native_permission(steps: List[dict], target_row: dict, storage: ProductStorage) -> None:
+    """Refuse to start a run with app steps until the user has allowed Inspectra to drive that platform."""
+    if not any(s.get("action_type") in SUPPORTED_APP_ACTIONS for s in steps):
+        return
+    platform = normalize_platform(target_row.get("app_type"))
+    if platform is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This pack has app steps; run it against a Mac, Windows, Android or iOS app target.",
+        )
+    if not consent_is_complete(storage.get_native_consent(platform), platform):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "native_permission_required",
+                "platform": platform,
+                "message": f"Allow Inspectra to drive {PLATFORM_LABELS[platform]}s before running this pack.",
+            },
         )
 
 
@@ -288,6 +312,7 @@ def run_pack(
         return LiveRunRecord(**run_dict)
 
     steps, step_case_ids = build_pack_steps(pack_row, storage.list_test_cases(pack_id))
+    _require_native_permission(steps, target_row, storage)
 
     options = RunOptions(
         watch=body.watch,

@@ -209,7 +209,13 @@ SUPPORTED_API_ACTIONS = frozenset({
     "passive_security_check", "assert_no_critical_security_findings", "assert_security_headers_present", "assert_cookie_flags_secure",
 })
 
-SUPPORTED_TEST_STEP_ACTIONS = SUPPORTED_WEB_ACTIONS | SUPPORTED_API_ACTIONS
+# Desktop (Mac, Windows) and mobile (Android, iOS) app steps; run by qa_ai.native_execution.
+SUPPORTED_APP_ACTIONS = frozenset({
+    "app_launch", "app_tap", "app_type", "app_press", "app_assert_text", "app_wait_for_text",
+    "app_screenshot", "app_close",
+})
+
+SUPPORTED_TEST_STEP_ACTIONS = SUPPORTED_WEB_ACTIONS | SUPPORTED_API_ACTIONS | SUPPORTED_APP_ACTIONS
 SUPPORTED_HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE"})
 
 
@@ -242,10 +248,14 @@ class Project(BaseModel):
 class AppTargetCreate(BaseModel):
     project_id: str
     name: str
-    app_type: str  # web, android, ios, native_macos, etc.
+    app_type: str  # web, api, android, ios, native_macos, native_windows
     base_url: Optional[str] = None
     description: str = ""
     tags: List[str] = Field(default_factory=list)
+    # Native apps: bundle id / package name / app name / program; optional .app/.apk/.exe; AVD, simulator or window title.
+    app_identifier: Optional[str] = Field(default=None, max_length=300)
+    app_path: Optional[str] = Field(default=None, max_length=1000)
+    device_name: Optional[str] = Field(default=None, max_length=200)
 
     @field_validator("base_url")
     @classmethod
@@ -259,6 +269,9 @@ class AppTargetUpdate(BaseModel):
     base_url: Optional[str] = None
     description: Optional[str] = None
     tags: Optional[List[str]] = None
+    app_identifier: Optional[str] = Field(default=None, max_length=300)
+    app_path: Optional[str] = Field(default=None, max_length=1000)
+    device_name: Optional[str] = Field(default=None, max_length=200)
 
     @field_validator("base_url")
     @classmethod
@@ -284,6 +297,9 @@ class AppTarget(BaseModel):
     working_directory: Optional[str] = None  # resolved local working dir
     discovery_id: Optional[str] = None       # discovery result that created this app
     detected_stack: Optional[str] = None     # comma-separated stack labels
+    app_identifier: Optional[str] = None     # native: bundle id / package / app name / program
+    app_path: Optional[str] = None           # native: .app / .apk / .exe to install or open
+    device_name: Optional[str] = None        # native: AVD / simulator name, or Windows window title
     provenance: Provenance = Field(default=Provenance.UNAVAILABLE)
 
 

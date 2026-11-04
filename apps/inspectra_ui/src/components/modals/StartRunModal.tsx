@@ -14,6 +14,8 @@ import { get, post } from '../../api/client';
 import type { AppTarget, LiveRunRecord } from '../../types/api';
 import { PreviewBadge } from '../PreviewBadge';
 import { isPreviewAppType, PREVIEW_TOOLTIP } from '../../config/capabilities';
+import { isNativeAppType, type NativePlatform } from '../../config/native';
+import { NativePermissionPanel } from './NativePermissionPanel';
 
 interface StartRunModalProps {
   packId: string;
@@ -38,6 +40,9 @@ export function StartRunModal({ packId, packName, onClose, isManual = false }: S
   // Automated runs only. Off by default: the run is hidden and every step starts from a clean page.
   const [watch, setWatch] = useState(false);
   const [continuous, setContinuous] = useState(false);
+  // Desktop/mobile targets: false until the platform's tools are present and the user has allowed it.
+  const [nativeReady, setNativeReady] = useState(false);
+  const handleNativeReady = useCallback((ready: boolean) => setNativeReady(ready), []);
 
   // Load app targets on mount
   useEffect(() => {
@@ -47,6 +52,11 @@ export function StartRunModal({ packId, packName, onClose, isManual = false }: S
       .catch(err => { if (!cancelled) setLoadError(String(err instanceof Error ? err.message : err)); });
     return () => { cancelled = true; };
   }, []);
+
+  const selectedApp = apps?.find(a => a.id === selectedAppId);
+  const selectedType = selectedApp?.app_type;
+  const nativePlatform: NativePlatform | null = !isManual && isNativeAppType(selectedType) ? selectedType : null;
+  const mobile = nativePlatform === 'android' || nativePlatform === 'ios';
 
   const handleStart = async () => {
     if (!selectedAppId) return;
@@ -187,8 +197,9 @@ export function StartRunModal({ packId, packName, onClose, isManual = false }: S
               <span>
                 <span style={{ fontSize: 12, color: P.text, fontWeight: 500 }}>Watch it run</span>
                 <span style={{ display: 'block', fontSize: 11, color: P.textMute, marginTop: 2 }}>
-                  Opens a visible browser window on the machine running Inspectra and slows each action so you can
-                  follow along. Uses a hidden browser if no screen is available.
+                  {mobile
+                    ? 'Shows the emulator or simulator window. Otherwise it runs without a window in the background.'
+                    : 'Opens a visible browser window on the machine running Inspectra and slows each action so you can follow along. Uses a hidden browser if no screen is available.'}
                 </span>
               </span>
             </label>
@@ -206,6 +217,10 @@ export function StartRunModal({ packId, packName, onClose, isManual = false }: S
           </fieldset>
         )}
 
+        {nativePlatform && (
+          <NativePermissionPanel key={nativePlatform} platform={nativePlatform} onReadyChange={handleNativeReady} />
+        )}
+
         {startError && (
           <div style={{ padding: '8px 12px', borderRadius: 7,
             background: P.failSoft, border: `1px solid ${P.fail}33`,
@@ -220,7 +235,7 @@ export function StartRunModal({ packId, packName, onClose, isManual = false }: S
           <Btn
             variant="primary"
             onClick={handleStart}
-            disabled={!selectedAppId || starting || !apps || apps.length === 0}
+            disabled={!selectedAppId || starting || !apps || apps.length === 0 || (nativePlatform !== null && !nativeReady)}
           >
             <Play size={12} />
             {starting ? 'Starting…' : 'Start run'}

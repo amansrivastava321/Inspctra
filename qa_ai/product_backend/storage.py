@@ -506,6 +506,16 @@ class ProductStorage:
             "ALTER TABLE app_targets ADD COLUMN working_directory TEXT",
             "ALTER TABLE app_targets ADD COLUMN discovery_id TEXT",
             "ALTER TABLE app_targets ADD COLUMN detected_stack TEXT",
+            # Native (desktop / mobile) app targets
+            "ALTER TABLE app_targets ADD COLUMN app_identifier TEXT",
+            "ALTER TABLE app_targets ADD COLUMN app_path TEXT",
+            "ALTER TABLE app_targets ADD COLUMN device_name TEXT",
+            "CREATE TABLE IF NOT EXISTS native_consents ("
+            "    platform    TEXT PRIMARY KEY,"
+            "    scopes      TEXT NOT NULL,"
+            "    unattended  INTEGER NOT NULL DEFAULT 0,"
+            "    granted_at  TEXT NOT NULL"
+            ")",
             "ALTER TABLE evidence_files ADD COLUMN step_id TEXT",
             "ALTER TABLE evidence_files ADD COLUMN type TEXT",
             "ALTER TABLE evidence_files ADD COLUMN sha256 TEXT",
@@ -800,8 +810,8 @@ class ProductStorage:
             "INSERT INTO app_targets "
             "(id, project_id, name, app_type, base_url, description, tags, "
             "source_type, source_path, source_url, launch_command, working_directory, "
-            "discovery_id, detected_stack, created_at, updated_at, provenance) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "discovery_id, detected_stack, created_at, updated_at, provenance, app_identifier, app_path, device_name) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 rec["id"], rec["project_id"], rec["name"], rec["app_type"],
                 rec.get("base_url"), rec.get("description", ""),
@@ -811,6 +821,7 @@ class ProductStorage:
                 rec.get("discovery_id"), rec.get("detected_stack"),
                 rec["created_at"], rec["updated_at"],
                 self._provenance_value(rec.get("provenance")),
+                rec.get("app_identifier"), rec.get("app_path"), rec.get("device_name"),
             ),
         )
         return rec
@@ -841,13 +852,37 @@ class ProductStorage:
             row["provenance"] = self._provenance_value(row.get("provenance"))
         return row
 
+    # ── native consents ────────────────────────────────────────────────────────
+
+    def get_native_consent(self, platform: str) -> Optional[Dict[str, Any]]:
+        row = self._row_to_dict(
+            self._execute("SELECT * FROM native_consents WHERE platform = ?", (platform,)).fetchone()
+        )
+        if row:
+            row["scopes"] = self._uj(row.get("scopes")) or []
+            row["unattended"] = bool(row.get("unattended"))
+        return row
+
+    def set_native_consent(self, platform: str, scopes: List[str], unattended: bool) -> Dict[str, Any]:
+        self._execute(
+            "INSERT INTO native_consents (platform, scopes, unattended, granted_at) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(platform) DO UPDATE SET scopes = excluded.scopes, unattended = excluded.unattended, "
+            "granted_at = excluded.granted_at",
+            (platform, self._j(sorted(set(scopes))), 1 if unattended else 0, _now_iso()),
+        )
+        return self.get_native_consent(platform) or {}
+
+    def delete_native_consent(self, platform: str) -> bool:
+        cur = self._execute("DELETE FROM native_consents WHERE platform = ?", (platform,))
+        return bool(getattr(cur, "rowcount", 0))
+
     def update_app_target(self, target_id: str, fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         sets, params = self._build_update(
             fields, [
                 "name", "app_type", "base_url", "description", "tags",
                 "source_type", "source_path", "source_url",
                 "launch_command", "working_directory", "discovery_id", "detected_stack",
-                "provenance",
+                "provenance", "app_identifier", "app_path", "device_name",
             ]
         )
         if not sets:

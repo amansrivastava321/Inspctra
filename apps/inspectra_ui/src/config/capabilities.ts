@@ -35,8 +35,8 @@ export const CAPABILITY_OPTIONS: readonly CapabilityOption[] = [
   { id: 'security', label: 'Security Check', preview: false, defaultAction: 'passive_security_check' },
   { id: 'performance', label: 'Performance Check', preview: false, defaultAction: 'measure_page_load' },
   { id: 'visual', label: 'Visual Regression', preview: false, defaultAction: 'assert_visual_match' },
-  { id: 'mobile', label: 'Mobile Testing', preview: true },
-  { id: 'desktop', label: 'Desktop Testing', preview: true },
+  { id: 'mobile', label: 'Mobile App Test', preview: false, defaultAction: 'app_launch' },
+  { id: 'desktop', label: 'Desktop App Test', preview: false, defaultAction: 'app_launch' },
   { id: 'distributed', label: 'Distributed Execution', preview: true },
   { id: 'chaos', label: 'Chaos Engineering', preview: true },
   { id: 'cicd', label: 'CI/CD Integration', preview: true },
@@ -60,7 +60,9 @@ export function isPreviewAction(actionType: unknown): boolean {
 
 export function isPreviewAppType(appType: unknown): boolean {
   const value = normalize(appType);
-  return ['mobile', 'android', 'ios', 'desktop', 'native_macos', 'native_windows', 'native_linux'].includes(value);
+  // Mac, Windows, Android and iOS apps are tested through qa_ai/native_execution; generic "mobile"/"desktop"
+  // labels and Linux desktop apps are not runnable yet.
+  return ['mobile', 'desktop', 'native_linux'].includes(value);
 }
 
 // The scheduler runs hourly, daily, nightly, weekdays and every_<N>m / every_<N>h packs. Only free-text

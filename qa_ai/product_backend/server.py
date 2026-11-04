@@ -55,6 +55,7 @@ from qa_ai.product_backend.routers import (
     local_picker as local_picker_router,
     memory as memory_router,
     models as models_router,
+    native as native_router,
     permissions,
     projects,
     reports,
@@ -196,6 +197,7 @@ def create_product_app(
     app.include_router(test_plans.router, prefix=_prefix)
     app.include_router(live_runs.router, prefix=_prefix)
     app.include_router(permissions.router, prefix=_prefix)
+    app.include_router(native_router.router, prefix=_prefix)
     app.include_router(evidence.router, prefix=_prefix)
     app.include_router(reports.router, prefix=_prefix)
     app.include_router(connectors.router, prefix=_prefix)
