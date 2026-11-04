@@ -55,6 +55,7 @@ function run(argv) {
     try { o.name = e.name() || ''; } catch (x) {}
     try { o.desc = e.description() || ''; } catch (x) {}
     try { const v = e.value(); o.value = (v === null || v === undefined) ? '' : String(v); } catch (x) {}
+    try { o.ident = e.attributes.byName('AXIdentifier').value() || ''; } catch (x) {}
     try { const p = e.position(); const s = e.size(); o.x = p[0] + s[0] / 2; o.y = p[1] + s[1] / 2; } catch (x) {}
     out.push(o);
   }
@@ -112,10 +113,12 @@ def parse_element_list(payload: str) -> List[UIElement]:
     elements: List[UIElement] = []
     for item in items:
         name, desc, value = item.get("name") or "", item.get("desc") or "", item.get("value") or ""
+        ident = item.get("ident") or ""
         elements.append(UIElement(
             label=name or desc,
             text=value if value != name else "",
-            identifier=desc if name else "",
+            # The accessibility identifier, else the description when the name took the label slot.
+            identifier=ident or (desc if name else ""),
             role=item.get("role") or "",
             x=item.get("x"), y=item.get("y"),
             extra={"index": item.get("i"), "match": name or desc or value},

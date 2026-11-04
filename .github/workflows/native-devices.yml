@@ -109,6 +109,8 @@ jobs:
         continue-on-error: true
         run: |
           brew tap facebook/fb
+          # Recent Homebrew refuses formulae from third-party taps until they are trusted.
+          brew trust facebook/fb || true
           brew install idb-companion
           python -m pip install fb-idb
           idb --help > /dev/null && echo "INSPECTRA_IDB_READY=1" >> "$GITHUB_ENV"

@@ -2,13 +2,14 @@
 when the runner grants Accessibility, and the iOS Simulator."""
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
 import pytest
 
 from _product import PNG_SIGNATURE, enabled, run_pack_on_device, save_artifact
-from qa_ai.native_execution import AppSpec
+from qa_ai.native_execution import AppSpec, ElementNotFound
 from qa_ai.native_execution.ios import IOSSimulatorEngine
 from qa_ai.native_execution.macos import MacOSEngine
 
@@ -33,8 +34,18 @@ def test_a_mac_app_is_driven_when_accessibility_is_allowed() -> None:
 
     engine.start(AppSpec(identifier="com.apple.calculator"), timeout=60)
     try:
+        elements = engine.elements()
+        # Kept as an artifact: what macOS reports for Calculator's controls on this machine.
+        save_artifact("macos-calculator-elements.json", json.dumps(
+            [{"role": e.role, "label": e.label, "text": e.text, "id": e.identifier} for e in elements], indent=1,
+        ).encode())
+        save_artifact("macos-calculator-start.png", engine.screenshot() or b"")
         for key in ("7", "Add", "2", "Equals"):
-            engine.tap(key, timeout=10)
+            try:
+                engine.tap(key, timeout=10)
+            except ElementNotFound:
+                seen = [(e.role, e.label, e.identifier) for e in engine.elements()][:80]
+                raise AssertionError(f"{key!r} not found; Calculator reported: {seen}")
         assert engine.wait_for_text("9", timeout=10), engine.visible_text()
         save_artifact("macos-calculator.png", engine.screenshot() or b"")
     finally:

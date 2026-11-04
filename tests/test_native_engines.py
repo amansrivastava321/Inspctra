@@ -112,7 +112,10 @@ def _android(devices: str = "emulator-5554\tdevice\n", avds: str = "Pixel_8\n", 
     )
 
 
-def test_android_needs_adb() -> None:
+def test_android_needs_adb(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Machines with the Android SDK installed (GitHub's Linux runners) must not leak it into this test.
+    monkeypatch.delenv("ANDROID_HOME", raising=False)
+    monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
     reqs = {r.id: r for r in AndroidEngine(FakeRunner()).requirements()}
 
     assert reqs["adb"].status == "missing" and "platform-tools" in reqs["adb"].how_to_fix
@@ -207,6 +210,33 @@ def test_android_reports_an_app_that_is_not_installed() -> None:
 
     with pytest.raises(NativeEngineError, match="installed"):
         AndroidEngine(runner).start(AppSpec(identifier="com.missing"))
+
+
+def test_typing_waits_until_a_text_field_has_focus() -> None:
+    focused_xml = UI_XML.replace(
+        'content-desc="Email" clickable="true"', 'content-desc="Email" clickable="true" focused="true"'
+    )
+    dumps = iter([UI_XML, UI_XML, focused_xml])
+    runner = _android(extra=[("uiautomator dump /dev/tty", lambda _a: ok(next(dumps, focused_xml)))])
+    engine = AndroidEngine(runner)
+    engine.start(AppSpec(identifier="com.example"))
+
+    engine.type_text("hello")
+
+    typed_at = next(i for i, c in enumerate(runner.calls) if "input text" in " ".join(c))
+    dumps_before = sum("uiautomator dump" in " ".join(c) for c in runner.calls[:typed_at])
+    assert dumps_before == 3  # it looked twice, saw no focused field, then typed once one had focus
+
+
+def test_typing_still_happens_when_no_field_ever_takes_focus() -> None:
+    runner = _android()
+    engine = AndroidEngine(runner)
+    engine.start(AppSpec(identifier="com.example"))
+
+    engine.type_text("hello")
+
+    assert runner.ran("input text hello")
+    assert runner.clock >= 5  # it waited for focus before giving up and typing anyway
 
 
 def test_android_tap_waits_for_the_element_then_gives_up() -> None:

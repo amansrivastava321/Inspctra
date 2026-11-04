@@ -60,7 +60,12 @@ def parse_ui_dump(xml_text: str) -> List[UIElement]:
             role=node.get("class", "") or "",
             x=centre[0] if centre else None,
             y=centre[1] if centre else None,
-            extra={"clickable": node.get("clickable") == "true", "package": node.get("package", "")},
+            extra={
+                "clickable": node.get("clickable") == "true",
+                "focused": node.get("focused") == "true",
+                "editable": "EditText" in (node.get("class") or ""),
+                "package": node.get("package", ""),
+            },
         ))
     return elements
 
@@ -217,8 +222,22 @@ class AndroidEngine(NativeEngine):
     def tap_element(self, element: UIElement) -> None:
         self._adb("shell", "input", "tap", str(int(element.x)), str(int(element.y)), timeout=20)
 
+    def _wait_for_focused_input(self, timeout: float = 5.0) -> bool:
+        """`input tap` returns before the screen changes; wait for a focused text field so typing is not lost."""
+        deadline = self.runner.now() + timeout
+        while True:
+            try:
+                if any(e.extra.get("focused") and e.extra.get("editable") for e in self.elements()):
+                    return True
+            except NativeEngineError:
+                pass
+            if self.runner.now() >= deadline:
+                return False
+            self.runner.sleep(0.3)
+
     def type_text(self, text: str) -> None:
         if text:
+            self._wait_for_focused_input()
             result = self._adb("shell", "input", "text", escape_input_text(text), timeout=30)
             if not result.ok:
                 raise NativeEngineError("Typing on the device failed.")
